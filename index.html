@@ -323,7 +323,7 @@ function explain(err,tbl){
   if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ schema_bellinee.sql และ schema_oem.sql ใน SQL Editor ก่อน";
   if(c==="42501")return"ไม่มีสิทธิ์แก้ไข ให้รันไฟล์ open_edit.sql ใน SQL Editor";
   if(/fetch|network|Failed/i.test(m))return"เชื่อมต่อ Supabase ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่";
-  return m||"เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
+  return (m||"เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ")+(c?" ("+c+")":"");
 }
 
 /* ---------- helpers ---------- */
@@ -377,7 +377,7 @@ function card(b,t){
     '<dl>'+
     row("โทร",'<div class="val"><a class="tel" href="tel:'+esc((b.phone||"").replace(/[^0-9+]/g,""))+'">'+hl(b.phone,t)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>')+
     row("เวลา",hl(b.hours,t))+
-    row("โซน",hl(b.zone,t))+
+    row("โซน",val(b.zone,t,"โซน"))+
     row("แท็ก 21:00",val(b.tag21,t,"แท็ก 21:00"))+
     row("แท็กสาขา",val(b.tag,t,"แท็กสาขา"))+
     row("ผู้ดูแล",hl(b.owner||"-",t))+
@@ -389,7 +389,7 @@ function table(list,t){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
       '<td class="nowrap">'+hl(b.phone,t)+'</td>'+
-      '<td>'+hl(b.hours,t)+'</td><td>'+hl(b.zone,t)+'</td>'+
+      '<td>'+hl(b.hours,t)+'</td><td>'+val(b.zone,t,"โซน")+'</td>'+
       '<td><span class="pill '+(b.hok?"yes":"no")+'" style="margin:0">'+(b.hok?"มี":"ไม่มี")+'</span></td>'+
       '<td>'+hl(b.tag21,t)+'</td><td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
   });
@@ -552,7 +552,7 @@ async function loadProducts(silent){
 /* product form sheet */
 var pEditing=null,pArm=null,pBusy=false;
 var PF=["unit","name","code"];
-function showPerr(m){var e=$("pferr");e.textContent=m||"";e.hidden=!m}
+function showPerr(m){var e=$("pferr");e.textContent=m||"";e.hidden=!m;if(m){toast("ไม่สำเร็จ: "+m,5000);e.scrollIntoView({block:"nearest"})}}
 function openP(id){
   pEditing=id;
   var p=id?products.filter(function(x){return x.id===id})[0]:null;
@@ -623,9 +623,9 @@ async function removeP(){
 
 /* ---------- toast + copy ---------- */
 var tt;
-function toast(msg){
+function toast(msg,ms){
   var el=$("toast");el.textContent=msg;el.hidden=false;
-  clearTimeout(tt);tt=setTimeout(function(){el.hidden=true},2200);
+  clearTimeout(tt);tt=setTimeout(function(){el.hidden=true},ms||2200);
 }
 function fallbackCopy(text){
   var ta=document.createElement("textarea");ta.value=text;ta.setAttribute("readonly","");
@@ -655,7 +655,7 @@ async function load(silent){
 /* ---------- form sheet ---------- */
 var editingId=null,armTimer=null;
 var F=["th","en","phone","code","hours","zone","tag21","tag","owner"];
-function showErr(msg){var e=$("ferr");e.textContent=msg||"";e.hidden=!msg}
+function showErr(msg){var e=$("ferr");e.textContent=msg||"";e.hidden=!msg;if(msg){toast("บันทึกไม่สำเร็จ: "+msg,5000);e.scrollIntoView({block:"nearest"})}}
 function openSheet(id){
   editingId=id;
   var b=id?rows.filter(function(x){return x.id===id})[0]:null;

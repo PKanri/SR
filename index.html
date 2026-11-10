@@ -195,11 +195,16 @@ img{max-width:100%}
       <button id="t-products" type="button" data-page="products">Secret Recipe</button>
       <button id="t-bellinee" type="button" data-page="bellinee">Bellinee</button>
       <button id="t-oem" type="button" data-page="oem">OEM</button>
+      <button id="t-rest" type="button" data-page="restaurants">ร้านอาหาร</button>
           </nav>
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋" aria-label="ค้นหาสาขา">
       <button id="clear" class="clear" type="button" aria-label="ล้างคำค้น" hidden>×</button>
+    </div>
+    <div id="rcontrols" class="controls" hidden>
+      <select id="rbrand" class="sort" aria-label="กรองตามแบรนด์"><option value="all">ทุกแบรนด์</option></select>
+      <select id="rarea" class="sort" aria-label="กรองตามแอเรีย"><option value="all">ทุกแอเรีย</option></select>
     </div>
     <div id="pcontrols" class="controls" hidden>
       <select id="punit" class="sort" aria-label="กรองตามหน่วย"><option value="all">ทุกหน่วย</option></select>
@@ -268,6 +273,30 @@ img{max-width:100%}
     </div>
   </form>
 </div>
+<div id="rsheet" class="sheet" hidden>
+  <div class="backdrop" data-close></div>
+  <form id="rform" class="panel" role="dialog" aria-modal="true" aria-labelledby="rsheet-title" novalidate>
+    <div class="panel-head"><h2 id="rsheet-title">แก้ไขร้านอาหาร</h2><button type="button" class="x" data-close aria-label="ปิด">×</button></div>
+    <div class="field"><label for="rf-name">ชื่อสาขา <i>*</i></label><input id="rf-name" type="text" autocomplete="off"></div>
+    <div class="two">
+      <div class="field"><label for="rf-brand">แบรนด์</label><input id="rf-brand" type="text" list="brandlist" autocomplete="off"></div>
+      <div class="field"><label for="rf-shop">ID</label><input id="rf-shop" type="text" inputmode="numeric" autocomplete="off"></div>
+    </div>
+    <datalist id="brandlist"></datalist>
+    <div class="field"><label for="rf-phone">เบอร์หน้าร้าน</label><input id="rf-phone" type="tel" autocomplete="off"></div>
+    <div class="field"><label for="rf-hours">เวลาเปิด-ปิด</label><textarea id="rf-hours"></textarea></div>
+    <div class="field"><label for="rf-details">รายละเอียด</label><textarea id="rf-details"></textarea></div>
+    <div class="field"><label for="rf-area">แอเรีย</label><input id="rf-area" type="text" list="arealist" autocomplete="off"></div>
+    <datalist id="arealist"></datalist>
+    <div id="rferr" class="ferr" role="alert" hidden></div>
+    <div class="panel-actions">
+      <button type="button" id="rdel" class="btn danger" hidden>ลบ</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>ยกเลิก</button>
+      <button type="submit" id="rsave" class="btn primary">บันทึก</button>
+    </div>
+  </form>
+</div>
 <div id="psheet" class="sheet" hidden>
   <div class="backdrop" data-close></div>
   <form id="pform" class="panel" role="dialog" aria-modal="true" aria-labelledby="psheet-title" novalidate>
@@ -319,7 +348,7 @@ function toRow(o){return{sort_order:o.order,name_th:o.th,name_en:o.en,phone:o.ph
 function explain(err,tbl){
   tbl=tbl||"branches";
   var c=err&&err.code,m=(err&&err.message)||"";
-  if(c==="PGRST205"||c==="42P01")return"ยังไม่มีตาราง "+tbl+" ใน Supabase ให้รันไฟล์ "+(tbl==="products"?"schema_products.sql และ seed_products.sql":"schema.sql และ seed.sql")+" ใน SQL Editor ก่อน";
+  if(c==="PGRST205"||c==="42P01")return"ยังไม่มีตาราง "+tbl+" ใน Supabase ให้รันไฟล์ "+(tbl==="products"?"schema_products.sql และ seed_products.sql":tbl==="restaurants"?"schema_restaurants.sql และ seed_restaurants.sql":"schema.sql และ seed.sql")+" ใน SQL Editor ก่อน";
   if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ schema_bellinee.sql และ schema_oem.sql ใน SQL Editor ก่อน";
   if(c==="42501")return"ไม่มีสิทธิ์แก้ไข ให้รันไฟล์ open_edit.sql ใน SQL Editor";
   if(/fetch|network|Failed/i.test(m))return"เชื่อมต่อ Supabase ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่";
@@ -426,11 +455,14 @@ function render(){
   $("t-oem").setAttribute("aria-current",state.page==="oem"?"page":"false");
   $("controls").hidden=state.page!=="search";
   $("pcontrols").hidden=!isProd;
+  $("rcontrols").hidden=state.page!=="restaurants";
+  $("t-rest").setAttribute("aria-current",state.page==="restaurants"?"page":"false");
   $("clear").hidden=!state.q;
   $("login").hidden=!((isEdit||(isProd&&loginAsk))&&!session&&sb);
-  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):"ข้อมูลสาขา Secret Recipe";
-  $("q").placeholder=isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋";
+  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"ร้านอาหาร (Ponn, Malakor)":"ข้อมูลสาขา Secret Recipe");
+  $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา เบอร์ ID หรือแอเรีย เช่น ป้อน, 38, พี่ฝ้าย":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋";
   $("q").setAttribute("aria-label",isProd?"ค้นหาสินค้า":"ค้นหาสาขา");
+  if(state.page==="restaurants"){renderRest();return}
   if(isProd){renderProducts();return}
   if(isEdit&&!session&&sb){$("count").textContent="";$("out").innerHTML="";return}
   if(loading&&!rows.length){
@@ -621,6 +653,106 @@ async function removeP(){
   pBusy=false;d.disabled=false;
 }
 
+
+/* ---------- restaurants page ---------- */
+var rest=[],rloaded=false,rloading=false,rerror="",rbrand="all",rarea="all",rEditing=null,rArm=null,rBusy=false;
+function rFromRow(r){return{id:r.id,order:r.sort_order||0,brand:r.brand||"",name:r.name||"",shop:r.shop_id||"",phone:r.phone||"",hours:r.hours||"",details:r.details||"",area:r.area||"",updatedAt:r.updated_at||""}}
+function rToRow(o){return{sort_order:o.order,brand:o.brand,name:o.name,shop_id:o.shop,phone:o.phone,hours:o.hours,details:o.details,area:o.area}}
+function rHay(o){return o._h||(o._h=norm([o.brand,o.name,o.shop,o.phone,o.hours,o.details,o.area].join(" ")))}
+function uniq(a,k){var s={},o=[];a.forEach(function(x){var v=x[k];if(v&&!s[v]){s[v]=1;o.push(v)}});return o}
+function fillRFilters(){
+  var b=uniq(rest,"brand"),a=uniq(rest,"area");
+  $("rbrand").innerHTML='<option value="all">ทุกแบรนด์</option>'+b.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join("");
+  $("rarea").innerHTML='<option value="all">ทุกแอเรีย</option>'+a.map(function(x){return'<option value="'+esc(x)+'">'+esc(x)+'</option>'}).join("");
+  $("rbrand").value=rbrand;$("rarea").value=rarea;
+  $("brandlist").innerHTML=b.map(function(x){return'<option value="'+esc(x)+'">'}).join("");
+  $("arealist").innerHTML=a.map(function(x){return'<option value="'+esc(x)+'">'}).join("");
+}
+function rcard(o,t){
+  return '<article class="card"><div class="card-head"><div><h2>'+hl(o.name,t)+'</h2>'+(o.brand?'<div class="eng">'+hl(o.brand,t)+'</div>':'')+'</div>'+
+    (o.shop?'<span class="code">#'+hl(o.shop,t)+'</span>':'')+'</div>'+
+    '<dl>'+
+    row("โทร",o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+
+    row("เวลา",hl(o.hours||"-",t))+
+    row("รายละเอียด",hl(o.details||"-",t))+
+    row("แอเรีย",hl(o.area||"-",t))+
+    '</dl><div class="cardfoot"><button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></div></article>';
+}
+function renderRest(){
+  var out=$("out");$("count").textContent="";
+  if(!rloaded&&rloading){out.innerHTML='<div class="empty"><b>กำลังโหลดร้านอาหาร…</b></div>';return}
+  if(!rloaded&&rerror){out.innerHTML='<div class="empty"><b>โหลดข้อมูลไม่สำเร็จ</b>'+esc(rerror)+'<br><br><button id="rretry" class="btn primary" type="button">ลองใหม่</button></div>';return}
+  if(!rloaded){out.innerHTML="";return}
+  var terms=norm(state.q).split(" ").filter(Boolean);
+  var list=rest.filter(function(o){
+    if(rbrand!=="all"&&o.brand!==rbrand)return false;
+    if(rarea!=="all"&&o.area!==rarea)return false;
+    var h=rHay(o);return terms.every(function(t){return h.indexOf(t)>-1});
+  });
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></div>';
+  if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบร้านที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง</div>';return}
+  out.innerHTML=bar+'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>';
+}
+async function loadRest(silent){
+  if(!sb){rloading=false;rerror="โหลดไลบรารี Supabase ไม่ได้ หรือยังไม่ได้ตั้งค่า config.js";if(state.page==="restaurants")render();return}
+  if(!silent){rloading=true;rerror="";if(state.page==="restaurants")render()}
+  try{
+    var r=await sb.from("restaurants").select("*").order("sort_order",{ascending:true});
+    if(r.error){rerror=explain(r.error,"restaurants")}
+    else{rest=(r.data||[]).map(rFromRow);rerror="";rloaded=true;fillRFilters()}
+  }catch(e){rerror=explain(e,"restaurants")}
+  rloading=false;if(state.page==="restaurants")render();
+}
+function showRerr(m){var e=$("rferr");e.textContent=m||"";e.hidden=!m;if(m){toast("ไม่สำเร็จ: "+m,5000);e.scrollIntoView({block:"nearest"})}}
+var RF=["name","brand","shop","phone","hours","details","area"];
+function openR(id){
+  rEditing=id;
+  var o=id?rest.filter(function(x){return x.id===id})[0]:null;
+  if(id&&!o)return;
+  $("rsheet-title").textContent=o?"แก้ไขร้านอาหาร":"เพิ่มร้านอาหาร";
+  RF.forEach(function(k){$("rf-"+k).value=o?(o[k]||""):"";$("rf-"+k).removeAttribute("aria-invalid")});
+  if(!o&&rbrand!=="all")$("rf-brand").value=rbrand;
+  $("rdel").hidden=!o;resetRDel();showRerr("");$("rsave").disabled=false;rBusy=false;
+  $("rsheet").hidden=false;
+}
+function closeR(){$("rsheet").hidden=true;rEditing=null;resetRDel()}
+function resetRDel(){clearTimeout(rArm);var d=$("rdel");d.textContent="ลบ";d.classList.remove("arm")}
+async function saveR(){
+  if(rBusy)return;
+  if(!sb){showRerr("เชื่อมต่อ Supabase ไม่ได้");return}
+  var o={};RF.forEach(function(k){o[k]=$("rf-"+k).value.trim()});
+  if(!o.name){$("rf-name").setAttribute("aria-invalid","true");showRerr("กรอกชื่อสาขา");$("rf-name").focus();return}
+  var cur=rEditing?rest.filter(function(x){return x.id===rEditing})[0]:null;
+  o.order=cur?cur.order:rest.reduce(function(m,x){return Math.max(m,x.order||0)},0)+1;
+  rBusy=true;$("rsave").disabled=true;showRerr("");
+  try{
+    var q=rEditing?sb.from("restaurants").update(rToRow(o)).eq("id",rEditing).select():sb.from("restaurants").insert(rToRow(o)).select();
+    var r=await q;
+    if(r.error){showRerr(explain(r.error,"restaurants"))}
+    else if(!r.data||!r.data.length){showRerr("บันทึกไม่สำเร็จ ยังไม่ได้เปิดสิทธิ์แก้ไขในฐานข้อมูล ให้รันไฟล์ schema_restaurants.sql ใน SQL Editor")}
+    else{
+      var s=rFromRow(r.data[0]);var i=rest.findIndex(function(x){return x.id===s.id});
+      if(i>-1)rest[i]=s;else rest.push(s);
+      rest.sort(function(a,b){return a.order-b.order});
+      fillRFilters();closeR();render();toast("บันทึกแล้ว");
+    }
+  }catch(e){showRerr(explain(e,"restaurants"))}
+  rBusy=false;$("rsave").disabled=false;
+}
+async function removeR(){
+  if(rBusy||!rEditing)return;
+  var d=$("rdel");
+  if(!d.classList.contains("arm")){d.classList.add("arm");d.textContent="กดอีกครั้งเพื่อยืนยันลบ";clearTimeout(rArm);rArm=setTimeout(resetRDel,4000);return}
+  rBusy=true;d.disabled=true;
+  try{
+    var r=await sb.from("restaurants").delete().eq("id",rEditing).select();
+    if(r.error){showRerr(explain(r.error,"restaurants"))}
+    else if(!r.data||!r.data.length){showRerr("ลบไม่สำเร็จ ยังไม่ได้เปิดสิทธิ์แก้ไขในฐานข้อมูล")}
+    else{rest=rest.filter(function(x){return x.id!==rEditing});fillRFilters();closeR();render();toast("ลบแล้ว")}
+  }catch(e){showRerr(explain(e,"restaurants"))}
+  rBusy=false;d.disabled=false;
+}
+
 /* ---------- toast + copy ---------- */
 var tt;
 function toast(msg,ms){
@@ -742,6 +874,9 @@ $("out").addEventListener("click",function(e){
   var ed=e.target.closest("[data-edit]");if(ed){openSheet(ed.dataset.edit);return}
   if(e.target.closest("#add")){openSheet(null);return}
   if(e.target.closest("#retry")){load();return}
+  var re_=e.target.closest("[data-redit]");if(re_){openR(re_.dataset.redit);return}
+  if(e.target.closest("#radd")){openR(null);return}
+  if(e.target.closest("#rretry")){loadRest();return}
   var pe=e.target.closest("[data-pedit]");if(pe){openP(pe.dataset.pedit);return}
   if(e.target.closest("#padd")){openP(null);return}
   if(e.target.closest("#pretry")){loadProducts();return}
@@ -754,18 +889,25 @@ $("psort").addEventListener("change",function(e){state.psort=e.target.value;stat
 $("pform").addEventListener("submit",function(e){e.preventDefault();saveP()});
 $("pdel").addEventListener("click",removeP);
 $("psheet").addEventListener("click",function(e){if(e.target.closest("[data-close]"))closeP()});
+$("rsheet").addEventListener("click",function(e){if(e.target.closest("[data-close]"))closeR()});
+$("rform").addEventListener("submit",function(e){e.preventDefault();saveR()});
+$("rdel").addEventListener("click",removeR);
+$("rbrand").addEventListener("change",function(e){rbrand=e.target.value;render()});
+$("rarea").addEventListener("change",function(e){rarea=e.target.value;render()});
 $("form").addEventListener("submit",function(e){e.preventDefault();save()});
 $("login").addEventListener("submit",doLogin);
 $("del").addEventListener("click",removeBranch);
 $("sheet").addEventListener("click",function(e){if(e.target.closest("[data-close]"))closeSheet()});
-document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(!$("sheet").hidden)closeSheet();if(!$("psheet").hidden)closeP()});
-function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":"search"}
+document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(!$("sheet").hidden)closeSheet();if(!$("psheet").hidden)closeP();if(!$("rsheet").hidden)closeR()});
+function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
-  if(isProdName(p)!==isProdPage()||(isProdName(p)&&p!==state.page)){state.q="";$("q").value=""}
+  if(p!==state.page){state.q="";$("q").value=""}
   state.page=p;state.plimit=100;state.unit="all";if(ploaded)fillUnits();
   if(!$("sheet").hidden)closeSheet();
   if(!$("psheet").hidden)closeP();
+  if(!$("rsheet").hidden)closeR();
   if(isProdName(p)&&!ploaded&&!ploading)loadProducts();
+  if(p==="restaurants"){rbrand="all";rarea="all";if(!rloaded&&!rloading)loadRest();else fillRFilters()}
   render();window.scrollTo(0,0);
 }
 function route(){setPage(pageFromHash())}
@@ -779,7 +921,7 @@ document.querySelectorAll(".tabs button").forEach(function(b){
 window.addEventListener("hashchange",function(){var p=pageFromHash();if(p!==state.page)setPage(p)});
 document.addEventListener("visibilitychange",function(){
   if(document.hidden||!sb)return;
-  if($("sheet").hidden&&$("psheet").hidden&&!busy&&!pBusy){load(true);if(ploaded)loadProducts(true)}
+  if($("sheet").hidden&&$("psheet").hidden&&$("rsheet").hidden&&!busy&&!pBusy&&!rBusy){load(true);if(ploaded)loadProducts(true);if(rloaded)loadRest(true)}
 });
 
 route();

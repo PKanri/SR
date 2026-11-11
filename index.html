@@ -231,13 +231,18 @@ header.top{top:calc(58px + env(safe-area-inset-top,0px))}
     <h1>Search Box สาขา Secret<small id="sub">ข้อมูลสาขา Secret Recipe</small></h1>
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋" aria-label="ค้นหาสาขา">
+      <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="ชื่อสาขา (ไทย/อังกฤษ) หรือรหัสสาขา เช่น แฟ, central, 181" aria-label="ค้นหาสาขา">
       <button id="clear" class="clear" type="button" aria-label="ล้างคำค้น" hidden>×</button>
     </div>
     <div id="rcontrols" class="controls" hidden>
       <select id="rbrand" class="sort" aria-label="กรองตามแบรนด์"><option value="all">ทุกแบรนด์</option></select>
       <select id="rarea" class="sort" aria-label="กรองตามแอเรีย"><option value="all">ทุกแอเรีย</option></select>
       <span class="spacer"></span>
+      <select id="rsort" class="sort" aria-label="เรียงลำดับ">
+        <option value="sheet">ตามชีต</option>
+        <option value="name">ชื่อ ก-ฮ</option>
+        <option value="code">ID</option>
+      </select>
       <div class="seg" role="group" aria-label="รูปแบบแสดงผล">
         <button id="rv-cards" type="button" aria-pressed="true">การ์ด</button>
         <button id="rv-table" type="button" aria-pressed="false">ตาราง</button>
@@ -394,9 +399,9 @@ function explain(err,tbl){
 }
 
 /* ---------- helpers ---------- */
-function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function norm(s){return String(s).toLowerCase().replace(/\s+/g," ").trim()}
-function hay(b){return norm([b.th,b.en,b.phone,b.hours,b.zone,b.tag,b.code,b.owner,b.hok?"hokkaido มี":"ไม่มี"].join(" "))}
+function hay(b){return norm([b.th,b.en,b.code].join(" "))}
 function hl(text,terms){
   var out=esc(text||"");
   terms.forEach(function(t){
@@ -445,11 +450,11 @@ function card(b,t){
     '<span class="code">#'+hl(b.code,t)+'</span></div>'+
     '<span class="pill '+(b.hok?"yes":"no")+'">'+(b.hok?"มี Hokkaido tart":"ไม่มี Hokkaido tart")+'</span>'+
     '<dl>'+
-    row("โทร",'<div class="val"><a class="tel" href="tel:'+esc((b.phone||"").replace(/[^0-9+]/g,""))+'">'+hl(b.phone,t)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>')+
-    row("เวลา",val(b.hours,t,"เวลาเปิด-ปิด"))+
-    row("โซน",val(b.zone,t,"โซน"))+
-    row("แท็ก",val(b.tag,t,"แท็ก"))+
-    row("ผู้ดูแล",hl(b.owner||"-",t))+
+    row("โทร",'<div class="val"><a class="tel" href="tel:'+esc((b.phone||"").replace(/[^0-9+]/g,""))+'">'+esc(b.phone)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>')+
+    row("เวลา",val(b.hours,[],"เวลาเปิด-ปิด"))+
+    row("โซน",val(b.zone,[],"โซน"))+
+    row("แท็ก",val(b.tag,[],"แท็ก"))+
+    row("ผู้ดูแล",esc(b.owner||"-"))+
     '</dl><div class="cardfoot">'+allBtn(allText(b))+'<button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
 }
 function table(list,t){
@@ -457,10 +462,10 @@ function table(list,t){
   list.forEach(function(b){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
-      '<td class="nowrap">'+(b.phone?'<div class="val"><a class="tel" href="tel:'+esc(b.phone.replace(/[^0-9+]/g,""))+'">'+hl(b.phone,t)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
-      '<td>'+val(b.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(b.zone,t,"โซน")+'</td>'+
+      '<td class="nowrap">'+(b.phone?'<div class="val"><a class="tel" href="tel:'+esc(b.phone.replace(/[^0-9+]/g,""))+'">'+esc(b.phone)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
+      '<td>'+val(b.hours,[],"เวลาเปิด-ปิด")+'</td><td>'+val(b.zone,[],"โซน")+'</td>'+
       '<td><span class="pill '+(b.hok?"yes":"no")+'" style="margin:0">'+(b.hok?"มี":"ไม่มี")+'</span></td>'+
-      '<td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td class="nowrap">'+allBtn(allText(b))+' <button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
+      '<td>'+esc(b.tag||"-")+'</td><td class="nowrap">'+esc(b.owner||"-")+'</td><td class="nowrap">'+allBtn(allText(b))+' <button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
@@ -479,7 +484,7 @@ function renderEdit(r){
       var upd=fmtDate(b.updatedAt);
       return '<button class="erow" type="button" data-edit="'+esc(b.id)+'">'+
         '<span class="main"><span class="name">'+hl(b.th,t)+'</span><br><span class="sub">'+hl(b.en,t)+'</span><br>'+
-        '<span class="sub">'+hl(b.phone||"-",t)+(upd?' · แก้ไขล่าสุด '+esc(upd):'')+'</span></span>'+
+        '<span class="sub">'+esc(b.phone||"-")+(upd?' · แก้ไขล่าสุด '+esc(upd):'')+'</span></span>'+
         '<span class="code">#'+hl(b.code||"-",t)+'</span><span class="go">แก้ไข</span></button>';
     }).join("")+'</div>';
   }
@@ -500,7 +505,7 @@ function render(){
   $("clear").hidden=!state.q;
   $("login").hidden=!((isEdit||(isProd&&loginAsk))&&!session&&sb);
   $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"สาขา Ponn / Malakor":"ข้อมูลสาขา Secret Recipe");
-  $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา เบอร์ ID หรือแอเรีย เช่น ป้อน, 38, พี่ฝ้าย":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋";
+  $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา หรือ ID เช่น ป้อน, มะละกอ, 38":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"ชื่อสาขา (ไทย/อังกฤษ) หรือรหัสสาขา เช่น แฟ, central, 181";
   $("q").setAttribute("aria-label",isProd?"ค้นหาสินค้า":"ค้นหาสาขา");
   if(state.page==="restaurants"){renderRest();return}
   if(isProd){renderProducts();return}
@@ -695,10 +700,10 @@ async function removeP(){
 
 
 /* ---------- restaurants page ---------- */
-var rest=[],rloaded=false,rloading=false,rerror="",rbrand="all",rarea="all",rEditing=null,rArm=null,rBusy=false;
+var rest=[],rloaded=false,rloading=false,rerror="",rbrand="all",rarea="all",rsort="sheet",rEditing=null,rArm=null,rBusy=false;
 function rFromRow(r){return{tag:r.tag||"",id:r.id,order:r.sort_order||0,brand:r.brand||"",name:r.name||"",shop:r.shop_id||"",phone:r.phone||"",hours:r.hours||"",details:r.details||"",area:r.area||"",updatedAt:r.updated_at||""}}
 function rToRow(o){return{tag:o.tag,sort_order:o.order,brand:o.brand,name:o.name,shop_id:o.shop,phone:o.phone,hours:o.hours,details:o.details,area:o.area}}
-function rHay(o){return o._h||(o._h=norm([o.brand,o.name,o.shop,o.phone,o.hours,o.details,o.tag,o.area].join(" ")))}
+function rHay(o){return o._h||(o._h=norm([o.name,o.shop].join(" ")))}
 function uniq(a,k){var s={},o=[];a.forEach(function(x){var v=x[k];if(v&&!s[v]){s[v]=1;o.push(v)}});return o}
 function fillRFilters(){
   var b=uniq(rest,"brand"),a=uniq(rest,"area");
@@ -709,14 +714,14 @@ function fillRFilters(){
   $("arealist").innerHTML=a.map(function(x){return'<option value="'+esc(x)+'">'}).join("");
 }
 function rcard(o,t){
-  return '<article class="card"><div class="card-head"><div><h2>'+hl(o.name,t)+'</h2>'+(o.brand?'<div class="eng">'+hl(o.brand,t)+'</div>':'')+'</div>'+
+  return '<article class="card"><div class="card-head"><div><h2>'+hl(o.name,t)+'</h2>'+(o.brand?'<div class="eng">'+esc(o.brand)+'</div>':'')+'</div>'+
     (o.shop?'<span class="code">#'+hl(o.shop,t)+'</span>':'')+'</div>'+
     '<dl>'+
-    row("โทร",o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+
-    row("เวลา",val(o.hours,t,"เวลาเปิด-ปิด"))+
-    row("รายละเอียด",val(o.details,t,"รายละเอียด"))+
-    row("แท็ก",val(o.tag,t,"แท็ก"))+
-    row("แอเรีย",hl(o.area||"-",t))+
+    row("โทร",o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+esc(o.phone)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+
+    row("เวลา",val(o.hours,[],"เวลาเปิด-ปิด"))+
+    row("รายละเอียด",val(o.details,[],"รายละเอียด"))+
+    row("แท็ก",val(o.tag,[],"แท็ก"))+
+    row("แอเรีย",esc(o.area||"-"))+
     '</dl><div class="cardfoot">'+allBtn(rallText(o))+'<button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></div></article>';
 }
 function renderRest(){
@@ -730,8 +735,11 @@ function renderRest(){
     if(rarea!=="all"&&o.area!==rarea)return false;
     var h=rHay(o);return terms.every(function(t){return h.indexOf(t)>-1});
   });
+  if(rsort==="name")list=list.slice().sort(function(a,b){return a.name.localeCompare(b.name,"th")});
+  else if(rsort==="code")list=list.slice().sort(function(a,b){return (parseInt(a.shop)||0)-(parseInt(b.shop)||0)});
   var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></div>';
   if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบร้านที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง</div>';return}
+  $("rsort").value=rsort;
   $("rv-cards").setAttribute("aria-pressed",state.view==="cards");
   $("rv-table").setAttribute("aria-pressed",state.view==="table");
   out.innerHTML=bar+(state.view==="table"?rtable(list,terms):'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>');
@@ -739,11 +747,11 @@ function renderRest(){
 function rtable(list,t){
   var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>ID</th><th>เบอร์หน้าร้าน</th><th>เวลาเปิด-ปิด</th><th>รายละเอียด</th><th>แท็ก</th><th>แอเรีย</th><th></th></tr></thead><tbody>';
   list.forEach(function(o){
-    h+='<tr><td><b>'+hl(o.name,t)+'</b><div class="eng">'+hl(o.brand,t)+'</div></td>'+
+    h+='<tr><td><b>'+hl(o.name,t)+'</b><div class="eng">'+esc(o.brand)+'</div></td>'+
       '<td class="mono">'+hl(o.shop,t)+'</td>'+
-      '<td class="nowrap">'+(o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
-      '<td>'+val(o.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(o.details,t,"รายละเอียด")+'</td><td>'+val(o.tag,t,"แท็ก")+'</td>'+
-      '<td class="nowrap">'+hl(o.area||"-",t)+'</td>'+
+      '<td class="nowrap">'+(o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+esc(o.phone)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
+      '<td>'+val(o.hours,[],"เวลาเปิด-ปิด")+'</td><td>'+val(o.details,[],"รายละเอียด")+'</td><td>'+val(o.tag,[],"แท็ก")+'</td>'+
+      '<td class="nowrap">'+esc(o.area||"-")+'</td>'+
       '<td class="nowrap">'+allBtn(rallText(o))+' <button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
@@ -1067,6 +1075,7 @@ $("rform").addEventListener("submit",function(e){e.preventDefault();saveR()});
 $("rdel").addEventListener("click",removeR);
 $("rbrand").addEventListener("change",function(e){rbrand=e.target.value;render()});
 $("rarea").addEventListener("change",function(e){rarea=e.target.value;render()});
+$("rsort").addEventListener("change",function(e){rsort=e.target.value;render()});
 $("form").addEventListener("submit",function(e){e.preventDefault();save()});
 $("login").addEventListener("submit",doLogin);
 $("del").addEventListener("click",removeBranch);
@@ -1081,7 +1090,7 @@ function setPage(p){
   if(!$("psheet").hidden)closeP();
   if(!$("rsheet").hidden)closeR();
   if(isProdName(p)&&!ploaded&&!ploading)loadProducts();
-  if(p==="restaurants"){rbrand="all";rarea="all";if(!rloaded&&!rloading)loadRest();else fillRFilters()}
+  if(p==="restaurants"){rbrand="all";rarea="all";rsort="sheet";if(!rloaded&&!rloading)loadRest();else fillRFilters()}
   render();window.scrollTo(0,0);
 }
 function route(){setPage(pageFromHash())}

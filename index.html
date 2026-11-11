@@ -48,6 +48,18 @@
   --mark:#6b5a12;--scrim:rgba(0,0,0,.6);
   color-scheme:dark;
 }
+.themebtn{margin-left:auto;flex:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg);display:grid;place-items:center;cursor:pointer}
+.themebtn:hover{border-color:var(--accent)}
+.themebtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.themepanel{position:absolute;right:0;top:calc(100% - 6px);z-index:30;width:min(300px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 10px 30px var(--scrim)}
+.themepanel h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--muted)}
+.themepanel .seg{margin-bottom:14px;display:flex}
+.themepanel .seg button{flex:1}
+.swatches{display:flex;flex-wrap:wrap;gap:10px}
+.swatch{width:40px;height:40px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;position:relative}
+.swatch[aria-pressed="true"]{border-color:var(--fg);box-shadow:0 0 0 2px var(--surface) inset}
+.swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.swname{margin-top:10px;font-size:13px;color:var(--muted)}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
@@ -212,6 +224,31 @@ header.top{top:calc(58px + env(safe-area-inset-top,0px))}
   .tabs button[aria-current="page"]{border-left-color:var(--accent);background:var(--accent-soft)}
 }
 </style>
+<script>
+/* theme: mode (auto/light/dark) + accent color, saved in this browser */
+var THEME_COLORS=[
+ {id:"pink",name:"ชมพู"},
+ {id:"cherry",name:"แดงเชอร์รี่",l:["#c62828","#fbe3e3","#fff"],d:["#ff8a80","#3b1f1f","#2d0b0b"]},
+ {id:"orange",name:"ส้ม",l:["#bf5a0a","#fdebd9","#fff"],d:["#ffa95c","#3a2614","#2b1403"]},
+ {id:"green",name:"เขียว",l:["#1f7a4d","#e1f2e9","#fff"],d:["#6fd3a0","#1c3328","#07241a"]},
+ {id:"blue",name:"ฟ้า",l:["#1565c0","#e0ecfa","#fff"],d:["#7ab8ff","#172a40","#061a33"]},
+ {id:"purple",name:"ม่วง",l:["#6a3fb5","#ece4f7","#fff"],d:["#b69cf0","#2a2040","#170b33"]},
+ {id:"choco",name:"ช็อกโกแลต",l:["#7b4a2b","#f1e6dd","#fff"],d:["#d9a47a","#35271d","#26150a"]}
+];
+var theme={mode:"auto",color:"pink"};
+try{var _t=JSON.parse(localStorage.getItem("sr_theme")||"null");if(_t&&_t.mode)theme=_t}catch(e){}
+function themeIsDark(){return theme.mode==="dark"||(theme.mode==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)}
+function applyTheme(){
+  var r=document.documentElement;
+  if(theme.mode==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",theme.mode);
+  var c=THEME_COLORS.filter(function(x){return x.id===theme.color})[0],v=["--accent","--accent-soft","--accent-fg"];
+  if(!c||!c.l){v.forEach(function(k){r.style.removeProperty(k)})}
+  else{var a=themeIsDark()?c.d:c.l;v.forEach(function(k,i){r.style.setProperty(k,a[i])})}
+}
+function saveTheme(){try{localStorage.setItem("sr_theme",JSON.stringify(theme))}catch(e){}}
+applyTheme();
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme)}catch(e){}
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -231,7 +268,14 @@ header.top{top:calc(58px + env(safe-area-inset-top,0px))}
     </div>
   </nav>
   <header class="top">
-    <h1><svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><polygon points="4,14 28,14 16,5" fill="#fff4e6"/><polygon points="4,14 28,14 28,27 4,27" fill="#f3a6b8"/><rect x="4" y="19" width="24" height="1.8" fill="#fff4e6"/><rect x="4" y="23.5" width="24" height="1.8" fill="#fff4e6"/><rect x="4" y="14" width="24" height="3" fill="#d9788f"/><polygon points="4,14 28,14 16,5" fill="none" stroke="#e8c9a8" stroke-width=".8" stroke-linejoin="round"/><circle cx="16" cy="8.6" r="2.4" fill="#e5384f"/><path d="M16 6.4 q.8 -2 2.6 -2.4" fill="none" stroke="#4fa84e" stroke-width="1.2" stroke-linecap="round"/></svg><span>Search Box<small id="sub">สาขาSecret Recipe</small></span></h1>
+    <h1><svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><polygon points="4,14 28,14 16,5" fill="#fff4e6"/><polygon points="4,14 28,14 28,27 4,27" fill="#f3a6b8"/><rect x="4" y="19" width="24" height="1.8" fill="#fff4e6"/><rect x="4" y="23.5" width="24" height="1.8" fill="#fff4e6"/><rect x="4" y="14" width="24" height="3" fill="#d9788f"/><polygon points="4,14 28,14 16,5" fill="none" stroke="#e8c9a8" stroke-width=".8" stroke-linejoin="round"/><circle cx="16" cy="8.6" r="2.4" fill="#e5384f"/><path d="M16 6.4 q.8 -2 2.6 -2.4" fill="none" stroke="#4fa84e" stroke-width="1.2" stroke-linecap="round"/></svg><span>Search Box<small id="sub">สาขาSecret Recipe</small></span><button id="themebtn" class="themebtn" type="button" aria-label="เลือกธีมสี" aria-expanded="false" aria-controls="themepanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-.9 2-1.8 0-1.2-1-1.6-1-2.7 0-1 .8-1.5 1.8-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/></svg></button></h1>
+    <div id="themepanel" class="themepanel" hidden>
+      <h3>โหมด</h3>
+      <div class="seg" id="thememode" role="group" aria-label="โหมดสว่าง/มืด"><button type="button" data-mode="auto">ตามเครื่อง</button><button type="button" data-mode="light">สว่าง</button><button type="button" data-mode="dark">มืด</button></div>
+      <h3>สี</h3>
+      <div class="swatches" id="themecolors" role="group" aria-label="สีหลัก"></div>
+      <div class="swname" id="themename"></div>
+    </div>
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="ชื่อสาขา (ไทย/อังกฤษ) หรือรหัสสาขา เช่น แฟ, central, 181" aria-label="ค้นหาสาขา">
@@ -1116,6 +1160,31 @@ $("login").addEventListener("submit",doLogin);
 $("del").addEventListener("click",removeBranch);
 $("sheet").addEventListener("click",function(e){if(e.target.closest("[data-close]"))closeSheet()});
 document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(!$("sheet").hidden)closeSheet();if(!$("psheet").hidden)closeP();if(!$("rsheet").hidden)closeR()});
+/* theme picker UI */
+function renderThemeUI(){
+  var dark=themeIsDark();
+  document.querySelectorAll("#thememode button").forEach(function(b){b.setAttribute("aria-pressed",b.dataset.mode===theme.mode?"true":"false")});
+  $("themecolors").innerHTML=THEME_COLORS.map(function(c){
+    var col=c.l?(dark?c.d[0]:c.l[0]):(dark?"#ee7d9f":"#a4254b");
+    return'<button type="button" class="swatch" data-color="'+c.id+'" aria-label="'+c.name+'" aria-pressed="'+(c.id===theme.color?"true":"false")+'" style="background:'+col+'"></button>';
+  }).join("");
+  var cur=THEME_COLORS.filter(function(c){return c.id===theme.color})[0]||THEME_COLORS[0];
+  $("themename").textContent="สีที่ใช้: "+cur.name;
+}
+function toggleThemePanel(show){
+  var p=$("themepanel");if(show===undefined)show=p.hidden;
+  p.hidden=!show;$("themebtn").setAttribute("aria-expanded",show?"true":"false");
+  if(show)renderThemeUI();
+}
+$("themebtn").addEventListener("click",function(e){e.stopPropagation();toggleThemePanel()});
+$("themepanel").addEventListener("click",function(e){
+  e.stopPropagation();
+  var m=e.target.closest("[data-mode]"),c=e.target.closest("[data-color]");
+  if(m){theme.mode=m.dataset.mode}else if(c){theme.color=c.dataset.color}else return;
+  applyTheme();saveTheme();renderThemeUI();
+});
+document.addEventListener("click",function(){if(!$("themepanel").hidden)toggleThemePanel(false)});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("themepanel").hidden){toggleThemePanel(false);$("themebtn").focus()}});
 function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#sanghiran"?"sanghiran":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
   if(p!==state.page){state.q="";$("q").value=""}

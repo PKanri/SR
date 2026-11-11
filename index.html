@@ -118,7 +118,13 @@ td.mono{font-family:var(--font-mono);font-size:13px;white-space:nowrap}
 td.nowrap{white-space:nowrap}
 
 /* edit list */
-.editbar{display:flex;align-items:center;gap:10px;margin:12px 0 10px}
+.editbar{display:flex;align-items:center;gap:10px;margin:12px 0 10px;flex-wrap:wrap}
+.barbtns{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+.syncbox{background:var(--surface);border:1.5px solid var(--accent);border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:14px}
+.syncbox b{font-size:15px}
+.syncbox ul{margin:6px 0 0;padding-left:20px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.syncbox .srow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.syncbox.ok{border-color:var(--ok)}.syncbox.err{border-color:var(--danger)}
 .editbar .count{margin:0;flex:1}
 .elist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:8px}
 .erow{display:flex;align-items:center;gap:10px;width:100%;min-width:0;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
@@ -590,7 +596,7 @@ function renderProducts(){
   $("punit").value=state.unit;$("psort").value=state.psort;
   var r=pFiltered(),list=r.list,dups=codeCounts();
   var who=session&&session.user&&session.user.email?session.user.email:"";
-  var bar=session?'<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+plist().length+' รายการ</div><button id="padd" class="btn primary" type="button">+ เพิ่มสินค้า</button></div>':'';
+  var bar=session?'<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+plist().length+' รายการ</div><span class="barbtns">'+(SHEET_GID[curCat()]?'<button id="psync" class="btn" type="button"'+(syncState&&syncState.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button>':'')+'<button id="padd" class="btn primary" type="button">+ เพิ่มสินค้า</button></span></div>'+syncPanel():'';
   $("count").textContent=session?"":"แสดง "+list.length+" จาก "+plist().length+" รายการ";
   var foot=session?"":'<div class="dbstat" style="margin-top:14px">ต้องการแก้ไขหรือเพิ่มสินค้า? <button id="plogin" class="linkbtn" type="button">เข้าสู่ระบบ</button></div>';
   if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบสินค้าที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง หรือค้นด้วยเลขท้ายของรหัส เช่น 1224</div>'+foot;return}
@@ -802,6 +808,119 @@ async function removeR(){
   rBusy=false;d.disabled=false;
 }
 
+
+/* ---------- sync from Google Sheet (Bellinee, OEM) ---------- */
+var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
+var SHEET_GID={bellinee:"670638780",oem:"1114306811"};
+var syncState=null;
+function parseCSV(t){
+  var rows=[],row=[],f="",q=false;
+  for(var i=0;i<t.length;i++){
+    var c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;
+    else if(c===","){row.push(f);f=""}
+    else if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(f);rows.push(row);row=[];f=""}
+    else f+=c;
+  }
+  if(f!==""||row.length){row.push(f);rows.push(row)}
+  return rows;
+}
+function parsePrice(s){s=String(s||"").replace(/[,\s฿]/g,"");return /^\d+(\.\d+)?$/.test(s)?Number(s):null}
+function sheetRows(cat,csv){
+  var rows=parseCSV(csv).filter(function(r){return r.some(function(x){return x.trim()})}),out=[];
+  rows.forEach(function(r,i){
+    var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
+    if(cat==="bellinee"){
+      if(i===0&&t(2).toLowerCase()==="code")return;
+      out.push({code:t(2),nameTh:t(0),name:t(1)});
+    }else{
+      if(i===0&&t(1).toLowerCase()==="code")return;
+      out.push({code:t(1),unit:t(0),name:t(2),perUnit:t(3),price:parsePrice(r[4])});
+    }
+  });
+  return out;
+}
+var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
+function buildPlan(cat,srows){
+  var cur=plist(),map={},seen={},dupSheet=0,add=[],upd=[],same=0;
+  cur.forEach(function(p){if(p.code&&!map[p.code])map[p.code]=p});
+  srows.forEach(function(s){
+    if(!s.code)return;
+    if(seen[s.code]){dupSheet++;return}
+    seen[s.code]=1;
+    var ex=map[s.code];
+    if(!ex){add.push(s);return}
+    var ch=[];
+    SYNC_FIELDS[cat].forEach(function(f){
+      var k=f[0],nv=s[k];
+      if(nv===""||nv===null||nv===undefined)return;   // never blank out existing data
+      var ov=ex[k];
+      if(String(ov===null||ov===undefined?"":ov)!==String(nv))ch.push({k:k,label:f[1],from:ov,to:nv});
+    });
+    if(ch.length)upd.push({id:ex.id,code:s.code,label:ex.nameTh||ex.name,ch:ch});else same++;
+  });
+  var missing=cur.filter(function(p){return p.code&&!seen[p.code]});
+  return{cat:cat,add:add,upd:upd,same:same,missing:missing,dupSheet:dupSheet,total:srows.length};
+}
+async function syncStart(){
+  var cat=curCat();if(!SHEET_GID[cat]||(syncState&&syncState.busy))return;
+  syncState={cat:cat,busy:true,msg:"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
+  try{
+    var r=await fetch("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat],{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status+" (ชีตอาจไม่ได้เปิดให้ดูด้วยลิงก์)");
+    var srows=sheetRows(cat,await r.text());
+    if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
+    syncState={cat:cat,plan:buildPlan(cat,srows)};
+  }catch(e){syncState={cat:cat,error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)}}
+  render();
+}
+async function syncApply(){
+  var st=syncState;if(!st||!st.plan||st.busy)return;
+  var plan=st.plan,cat=plan.cat;
+  syncState={cat:cat,busy:true,msg:"กำลังอัปเดตข้อมูล…"};render();
+  var failed=0,added=0,updated=0,errMsg="";
+  try{
+    if(plan.add.length){
+      var order=products.reduce(function(m,x){return Math.max(m,x.order||0)},0);
+      var recs=plan.add.map(function(s,i){
+        var o={catalog:cat,sort_order:order+i+1,code:s.code,name:s.name||"",name_th:"",unit:"",per_unit:"",price:null};
+        if(cat==="bellinee")o.name_th=s.nameTh||"";
+        else{o.unit=s.unit||"";o.per_unit=s.perUnit||"";o.price=s.price}
+        return o;
+      });
+      var ri=await sb.from("products").insert(recs).select();
+      if(ri.error){errMsg=explain(ri.error,"products");failed+=recs.length}else added=(ri.data||[]).length;
+    }
+    for(var i=0;i<plan.upd.length;i+=10){
+      var chunk=plan.upd.slice(i,i+10);
+      var res=await Promise.all(chunk.map(function(u){
+        var patch={};
+        u.ch.forEach(function(c){patch[{nameTh:"name_th",name:"name",unit:"unit",perUnit:"per_unit",price:"price"}[c.k]]=c.to});
+        return sb.from("products").update(patch).eq("id",u.id).select();
+      }));
+      res.forEach(function(x){if(x.error){failed++;errMsg=errMsg||explain(x.error,"products")}else if(!x.data||!x.data.length){failed++;errMsg=errMsg||"ไม่มีสิทธิ์แก้ไข (รัน open_edit.sql)"}else updated++});
+    }
+  }catch(e){failed++;errMsg=explain(e,"products")}
+  await loadProducts(true);
+  syncState={cat:cat,done:true,added:added,updated:updated,failed:failed,errMsg:errMsg};
+  render();
+}
+function syncPanel(){
+  var s=syncState;if(!s||s.cat!==curCat())return"";
+  if(s.busy)return'<div class="syncbox" role="status"><b>'+esc(s.msg)+'</b></div>';
+  if(s.error)return'<div class="syncbox err" role="alert"><b>'+esc(s.error)+'</b><div class="srow"><button id="psync" class="btn" type="button">ลองใหม่</button><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' รายการ'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  var p=s.plan,li=function(a,f){return a.slice(0,8).map(f).join("")+(a.length>8?'<li>…และอีก '+(a.length-8)+' รายการ</li>':"")};
+  var fmt=function(v){return v===""||v===null||v===undefined?"ว่าง":String(v)};
+  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · มีในแอปแต่ไม่มีในชีต '+p.missing.length+' (ไม่ลบ)':'')+(p.dupSheet?' · รหัสซ้ำในชีต '+p.dupSheet+' (ใช้แถวแรก)':'')+'</div>';
+  if(p.add.length)h+='<div style="margin-top:8px">จะเพิ่ม:</div><ul>'+li(p.add,function(a){return'<li>'+esc(a.code)+' '+esc(a.nameTh||a.name)+'</li>'})+'</ul>';
+  if(p.upd.length)h+='<div style="margin-top:8px">จะแก้ไข:</div><ul>'+li(p.upd,function(u){return'<li>'+esc(u.code)+' '+u.ch.map(function(c){return esc(c.label)+': '+esc(fmt(c.from))+' → '+esc(fmt(c.to))}).join(' | ')+'</li>'})+'</ul>';
+  var none=!p.add.length&&!p.upd.length;
+  h+='<div class="srow">'+(none?'<span>ข้อมูลตรงกับชีตแล้ว ไม่ต้องอัปเดต</span>':'<button id="psync-ok" class="btn primary" type="button">ยืนยันอัปเดต</button>')+'<button id="psync-cancel" class="btn" type="button">'+(none?'ปิด':'ยกเลิก')+'</button></div></div>';
+  return h;
+}
+
 /* ---------- toast + copy ---------- */
 var tt;
 function toast(msg,ms){
@@ -928,6 +1047,9 @@ $("out").addEventListener("click",function(e){
   var re_=e.target.closest("[data-redit]");if(re_){openR(re_.dataset.redit);return}
   if(e.target.closest("#radd")){openR(null);return}
   if(e.target.closest("#rretry")){loadRest();return}
+  if(e.target.closest("#psync")){syncStart();return}
+  if(e.target.closest("#psync-ok")){syncApply();return}
+  if(e.target.closest("#psync-cancel")){syncState=null;render();return}
   var pe=e.target.closest("[data-pedit]");if(pe){openP(pe.dataset.pedit);return}
   if(e.target.closest("#padd")){openP(null);return}
   if(e.target.closest("#pretry")){loadProducts();return}
@@ -953,6 +1075,7 @@ document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(!$
 function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
   if(p!==state.page){state.q="";$("q").value=""}
+  syncState=null;
   state.page=p;state.plimit=100;state.unit="all";if(ploaded)fillUnits();
   if(!$("sheet").hidden)closeSheet();
   if(!$("psheet").hidden)closeP();

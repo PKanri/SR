@@ -192,10 +192,10 @@ img{max-width:100%}
     <h1>Search Box สาขา Secret<small id="sub">ข้อมูลสาขา Secret Recipe</small></h1>
     <nav class="tabs" aria-label="หน้า">
       <button id="t-search" type="button" data-page="search">สาขาSR</button>
+      <button id="t-rest" type="button" data-page="restaurants">สาขาPonn/Malakor</button>
       <button id="t-products" type="button" data-page="products">Secret Recipe</button>
       <button id="t-bellinee" type="button" data-page="bellinee">Bellinee</button>
       <button id="t-oem" type="button" data-page="oem">OEM</button>
-      <button id="t-rest" type="button" data-page="restaurants">ร้านอาหาร</button>
           </nav>
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -205,6 +205,11 @@ img{max-width:100%}
     <div id="rcontrols" class="controls" hidden>
       <select id="rbrand" class="sort" aria-label="กรองตามแบรนด์"><option value="all">ทุกแบรนด์</option></select>
       <select id="rarea" class="sort" aria-label="กรองตามแอเรีย"><option value="all">ทุกแอเรีย</option></select>
+      <span class="spacer"></span>
+      <div class="seg" role="group" aria-label="รูปแบบแสดงผล">
+        <button id="rv-cards" type="button" aria-pressed="true">การ์ด</button>
+        <button id="rv-table" type="button" aria-pressed="false">ตาราง</button>
+      </div>
     </div>
     <div id="pcontrols" class="controls" hidden>
       <select id="punit" class="sort" aria-label="กรองตามหน่วย"><option value="all">ทุกหน่วย</option></select>
@@ -261,8 +266,8 @@ img{max-width:100%}
     <div class="field"><label for="f-hours">เวลาเปิด-ปิด</label><input id="f-hours" type="text" autocomplete="off"></div>
     <div class="field"><label for="f-zone">โซน / ตำแหน่งร้าน</label><textarea id="f-zone"></textarea></div>
     <label class="switch" for="f-hok"><input id="f-hok" type="checkbox"> มีขาย Hokkaido tart</label>
-    <div class="field"><label for="f-tag21">แท็ก 21:00</label><input id="f-tag21" type="text" autocomplete="off"></div>
-    <div class="field"><label for="f-tag">แท็กสาขา</label><textarea id="f-tag"></textarea></div>
+    <div class="field" hidden><label for="f-tag21">แท็ก 21:00</label><input id="f-tag21" type="text" autocomplete="off"></div>
+    <div class="field"><label for="f-tag">แท็ก</label><textarea id="f-tag"></textarea></div>
     <div class="field"><label for="f-owner">ผู้ดูแล</label><input id="f-owner" type="text" autocomplete="off"></div>
     <div id="ferr" class="ferr" role="alert" hidden></div>
     <div class="panel-actions">
@@ -286,6 +291,7 @@ img{max-width:100%}
     <div class="field"><label for="rf-phone">เบอร์หน้าร้าน</label><input id="rf-phone" type="tel" autocomplete="off"></div>
     <div class="field"><label for="rf-hours">เวลาเปิด-ปิด</label><textarea id="rf-hours"></textarea></div>
     <div class="field"><label for="rf-details">รายละเอียด</label><textarea id="rf-details"></textarea></div>
+    <div class="field"><label for="rf-tag">แท็ก</label><textarea id="rf-tag"></textarea></div>
     <div class="field"><label for="rf-area">แอเรีย</label><input id="rf-area" type="text" list="arealist" autocomplete="off"></div>
     <datalist id="arealist"></datalist>
     <div id="rferr" class="ferr" role="alert" hidden></div>
@@ -349,7 +355,7 @@ function explain(err,tbl){
   tbl=tbl||"branches";
   var c=err&&err.code,m=(err&&err.message)||"";
   if(c==="PGRST205"||c==="42P01")return"ยังไม่มีตาราง "+tbl+" ใน Supabase ให้รันไฟล์ "+(tbl==="products"?"schema_products.sql และ seed_products.sql":tbl==="restaurants"?"schema_restaurants.sql และ seed_restaurants.sql":"schema.sql และ seed.sql")+" ใน SQL Editor ก่อน";
-  if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ schema_bellinee.sql และ schema_oem.sql ใน SQL Editor ก่อน";
+  if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ "+(tbl==="restaurants"?"schema_restaurants_tag.sql":"schema_bellinee.sql และ schema_oem.sql")+" ใน SQL Editor ก่อน";
   if(c==="42501")return"ไม่มีสิทธิ์แก้ไข ให้รันไฟล์ open_edit.sql ใน SQL Editor";
   if(/fetch|network|Failed/i.test(m))return"เชื่อมต่อ Supabase ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่";
   return (m||"เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ")+(c?" ("+c+")":"");
@@ -358,7 +364,7 @@ function explain(err,tbl){
 /* ---------- helpers ---------- */
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function norm(s){return String(s).toLowerCase().replace(/\s+/g," ").trim()}
-function hay(b){return norm([b.th,b.en,b.phone,b.hours,b.zone,b.tag21,b.tag,b.code,b.owner,b.hok?"hokkaido มี":"ไม่มี"].join(" "))}
+function hay(b){return norm([b.th,b.en,b.phone,b.hours,b.zone,b.tag,b.code,b.owner,b.hok?"hokkaido มี":"ไม่มี"].join(" "))}
 function hl(text,terms){
   var out=esc(text||"");
   terms.forEach(function(t){
@@ -405,22 +411,21 @@ function card(b,t){
     '<span class="pill '+(b.hok?"yes":"no")+'">'+(b.hok?"มี Hokkaido tart":"ไม่มี Hokkaido tart")+'</span>'+
     '<dl>'+
     row("โทร",'<div class="val"><a class="tel" href="tel:'+esc((b.phone||"").replace(/[^0-9+]/g,""))+'">'+hl(b.phone,t)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>')+
-    row("เวลา",hl(b.hours,t))+
+    row("เวลา",val(b.hours,t,"เวลาเปิด-ปิด"))+
     row("โซน",val(b.zone,t,"โซน"))+
-    row("แท็ก 21:00",val(b.tag21,t,"แท็ก 21:00"))+
-    row("แท็กสาขา",val(b.tag,t,"แท็กสาขา"))+
+    row("แท็ก",val(b.tag,t,"แท็ก"))+
     row("ผู้ดูแล",hl(b.owner||"-",t))+
     '</dl><div class="cardfoot"><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
 }
 function table(list,t){
-  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>แท็ก 21:00</th><th>แท็กสาขา</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
+  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>แท็ก</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
   list.forEach(function(b){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
       '<td class="nowrap">'+hl(b.phone,t)+'</td>'+
-      '<td>'+hl(b.hours,t)+'</td><td>'+val(b.zone,t,"โซน")+'</td>'+
+      '<td>'+val(b.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(b.zone,t,"โซน")+'</td>'+
       '<td><span class="pill '+(b.hok?"yes":"no")+'" style="margin:0">'+(b.hok?"มี":"ไม่มี")+'</span></td>'+
-      '<td>'+hl(b.tag21,t)+'</td><td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
+      '<td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
@@ -459,7 +464,7 @@ function render(){
   $("t-rest").setAttribute("aria-current",state.page==="restaurants"?"page":"false");
   $("clear").hidden=!state.q;
   $("login").hidden=!((isEdit||(isProd&&loginAsk))&&!session&&sb);
-  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"ร้านอาหาร (Ponn, Malakor)":"ข้อมูลสาขา Secret Recipe");
+  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"สาขา Ponn / Malakor":"ข้อมูลสาขา Secret Recipe");
   $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา เบอร์ ID หรือแอเรีย เช่น ป้อน, 38, พี่ฝ้าย":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋";
   $("q").setAttribute("aria-label",isProd?"ค้นหาสินค้า":"ค้นหาสาขา");
   if(state.page==="restaurants"){renderRest();return}
@@ -656,9 +661,9 @@ async function removeP(){
 
 /* ---------- restaurants page ---------- */
 var rest=[],rloaded=false,rloading=false,rerror="",rbrand="all",rarea="all",rEditing=null,rArm=null,rBusy=false;
-function rFromRow(r){return{id:r.id,order:r.sort_order||0,brand:r.brand||"",name:r.name||"",shop:r.shop_id||"",phone:r.phone||"",hours:r.hours||"",details:r.details||"",area:r.area||"",updatedAt:r.updated_at||""}}
-function rToRow(o){return{sort_order:o.order,brand:o.brand,name:o.name,shop_id:o.shop,phone:o.phone,hours:o.hours,details:o.details,area:o.area}}
-function rHay(o){return o._h||(o._h=norm([o.brand,o.name,o.shop,o.phone,o.hours,o.details,o.area].join(" ")))}
+function rFromRow(r){return{tag:r.tag||"",id:r.id,order:r.sort_order||0,brand:r.brand||"",name:r.name||"",shop:r.shop_id||"",phone:r.phone||"",hours:r.hours||"",details:r.details||"",area:r.area||"",updatedAt:r.updated_at||""}}
+function rToRow(o){return{tag:o.tag,sort_order:o.order,brand:o.brand,name:o.name,shop_id:o.shop,phone:o.phone,hours:o.hours,details:o.details,area:o.area}}
+function rHay(o){return o._h||(o._h=norm([o.brand,o.name,o.shop,o.phone,o.hours,o.details,o.tag,o.area].join(" ")))}
 function uniq(a,k){var s={},o=[];a.forEach(function(x){var v=x[k];if(v&&!s[v]){s[v]=1;o.push(v)}});return o}
 function fillRFilters(){
   var b=uniq(rest,"brand"),a=uniq(rest,"area");
@@ -673,8 +678,9 @@ function rcard(o,t){
     (o.shop?'<span class="code">#'+hl(o.shop,t)+'</span>':'')+'</div>'+
     '<dl>'+
     row("โทร",o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+
-    row("เวลา",hl(o.hours||"-",t))+
-    row("รายละเอียด",hl(o.details||"-",t))+
+    row("เวลา",val(o.hours,t,"เวลาเปิด-ปิด"))+
+    row("รายละเอียด",val(o.details,t,"รายละเอียด"))+
+    row("แท็ก",val(o.tag,t,"แท็ก"))+
     row("แอเรีย",hl(o.area||"-",t))+
     '</dl><div class="cardfoot"><button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></div></article>';
 }
@@ -691,7 +697,21 @@ function renderRest(){
   });
   var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></div>';
   if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบร้านที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง</div>';return}
-  out.innerHTML=bar+'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>';
+  $("rv-cards").setAttribute("aria-pressed",state.view==="cards");
+  $("rv-table").setAttribute("aria-pressed",state.view==="table");
+  out.innerHTML=bar+(state.view==="table"?rtable(list,terms):'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>');
+}
+function rtable(list,t){
+  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>ID</th><th>เบอร์หน้าร้าน</th><th>เวลาเปิด-ปิด</th><th>รายละเอียด</th><th>แท็ก</th><th>แอเรีย</th><th></th></tr></thead><tbody>';
+  list.forEach(function(o){
+    h+='<tr><td><b>'+hl(o.name,t)+'</b><div class="eng">'+hl(o.brand,t)+'</div></td>'+
+      '<td class="mono">'+hl(o.shop,t)+'</td>'+
+      '<td class="nowrap">'+(o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
+      '<td>'+val(o.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(o.details,t,"รายละเอียด")+'</td><td>'+val(o.tag,t,"แท็ก")+'</td>'+
+      '<td class="nowrap">'+hl(o.area||"-",t)+'</td>'+
+      '<td><button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></td></tr>';
+  });
+  return h+'</tbody></table></div>';
 }
 async function loadRest(silent){
   if(!sb){rloading=false;rerror="โหลดไลบรารี Supabase ไม่ได้ หรือยังไม่ได้ตั้งค่า config.js";if(state.page==="restaurants")render();return}
@@ -704,7 +724,7 @@ async function loadRest(silent){
   rloading=false;if(state.page==="restaurants")render();
 }
 function showRerr(m){var e=$("rferr");e.textContent=m||"";e.hidden=!m;if(m){toast("ไม่สำเร็จ: "+m,5000);e.scrollIntoView({block:"nearest"})}}
-var RF=["name","brand","shop","phone","hours","details","area"];
+var RF=["name","brand","shop","phone","hours","details","tag","area"];
 function openR(id){
   rEditing=id;
   var o=id?rest.filter(function(x){return x.id===id})[0]:null;
@@ -869,6 +889,8 @@ document.querySelectorAll(".chip").forEach(function(c){c.addEventListener("click
 function setView(v){state.view=v;try{localStorage.setItem("sr-view",v)}catch(e){}render()}
 $("v-cards").addEventListener("click",function(){setView("cards")});
 $("v-table").addEventListener("click",function(){setView("table")});
+$("rv-cards").addEventListener("click",function(){setView("cards")});
+$("rv-table").addEventListener("click",function(){setView("table")});
 $("out").addEventListener("click",function(e){
   var c=e.target.closest(".copy");if(c){doCopy(c.dataset.copy);return}
   var ed=e.target.closest("[data-edit]");if(ed){openSheet(ed.dataset.edit);return}

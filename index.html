@@ -677,6 +677,7 @@ async function saveP(){
       products.sort(function(a,b){return a.order-b.order});
       fillUnits();closeP();render();
       toast(dup?"บันทึกแล้ว (รหัส "+o.code+" ซ้ำกับสินค้าอื่น "+dup+" รายการ)":"บันทึกแล้ว");
+      if(o.code||(cur&&cur.code))sheetPush({action:"upsert",cat:o.cat,oldCode:cur?cur.code:"",row:{code:o.code,nameTh:o.nameTh,name:o.name,unit:o.unit,perUnit:o.perUnit,price:o.price}}).then(function(res){pushToast(res,"บันทึกแล้ว")});
     }
   }catch(e){showPerr(explain(e,"products"))}
   pBusy=false;$("psave").disabled=false;
@@ -689,11 +690,13 @@ async function removeP(){
     clearTimeout(pArm);pArm=setTimeout(resetPDel,4000);return;
   }
   pBusy=true;d.disabled=true;
+  var delP=products.filter(function(x){return x.id===pEditing})[0];
   try{
     var r=await sb.from("products").delete().eq("id",pEditing).select();
     if(r.error){showPerr(explain(r.error,"products"))}
     else if(!r.data||!r.data.length){showPerr("ลบไม่สำเร็จ ยังไม่ได้เปิดสิทธิ์แก้ไขในฐานข้อมูล ให้รันไฟล์ open_edit.sql ใน SQL Editor")}
-    else{products=products.filter(function(x){return x.id!==pEditing});fillUnits();closeP();render();toast("ลบสินค้าแล้ว")}
+    else{products=products.filter(function(x){return x.id!==pEditing});fillUnits();closeP();render();toast("ลบสินค้าแล้ว");
+      if(delP&&delP.code)sheetPush({action:"delete",cat:delP.cat,code:delP.code}).then(function(res){pushToast(res,"ลบแล้ว")})}
   }catch(e){showPerr(explain(e,"products"))}
   pBusy=false;d.disabled=false;
 }
@@ -821,6 +824,20 @@ async function removeR(){
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
 var SHEET_GID={bellinee:"670638780",oem:"1114306811"};
 var syncState=null;
+/* write-through: web edits -> Google Sheet via Apps Script web app (optional; set SHEET_WEBAPP_URL in config.js) */
+async function sheetPush(payload){
+  var url=CFG.SHEET_WEBAPP_URL;if(!url||!SHEET_GID[payload.cat])return null;
+  payload.token=CFG.SHEET_TOKEN||"";
+  try{
+    var r=await fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+    var j=await r.json();
+    return j&&j.ok?{ok:true,msg:j.msg||""}:{ok:false,msg:(j&&j.error)||("HTTP "+r.status)};
+  }catch(e){return{ok:false,msg:location.protocol==="file:"?"เปิดผ่านเว็บ https:// แทนไฟล์ในเครื่อง":((e&&e.message)||"เชื่อมต่อไม่ได้")}}
+}
+function pushToast(res,what){
+  if(!res)return;
+  toast(res.ok?what+" และอัปเดต Google Sheet แล้ว":what+" (ในเว็บ) แต่ส่งไป Google Sheet ไม่สำเร็จ: "+res.msg,res.ok?2600:7000);
+}
 function parseCSV(t){
   var rows=[],row=[],f="",q=false;
   for(var i=0;i<t.length;i++){

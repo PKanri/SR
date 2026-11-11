@@ -880,7 +880,7 @@ async function syncStart(){
     var srows=sheetRows(cat,await r.text());
     if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
     syncState={cat:cat,plan:buildPlan(cat,srows)};
-  }catch(e){syncState={cat:cat,error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)}}
+  }catch(e){syncState={cat:cat,error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)+(location.protocol==="file:"?" — คุณกำลังเปิดไฟล์จากในเครื่อง (file://) Google ไม่อนุญาตให้ดึงชีตแบบนี้ ให้เปิดผ่านเว็บที่ deploy แล้ว (https://...github.io/...) แล้วกดอัปเดตใหม่":" — ตรวจอินเทอร์เน็ต หรือปิดตัวบล็อกโฆษณา/VPN ที่อาจบล็อก docs.google.com")}}
   render();
 }
 async function syncApply(){

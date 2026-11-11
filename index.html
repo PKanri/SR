@@ -182,7 +182,8 @@ img{max-width:100%}
 .price{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
 .price.none{font-weight:400;font-size:13px;color:var(--muted)}
 .per{font-size:12px;padding:1px 9px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
-.cardfoot{margin-top:12px;display:flex;justify-content:flex-end}
+.cardfoot{margin-top:12px;display:flex;justify-content:flex-end;gap:8px;align-items:center}
+.copyall{height:32px;color:var(--accent);border-color:var(--accent)}
 .btn.small{height:32px;padding:0 12px;font-size:13px}
 </style>
 </head>
@@ -400,6 +401,9 @@ function copyBtn(text,label){
   if(!text)return"";
   return '<button class="copy" type="button" data-copy="'+esc(text)+'" aria-label="คัดลอก'+esc(label)+'">คัดลอก</button>';
 }
+function allBtn(text){return '<button class="copy copyall" type="button" data-copy="'+esc(text)+'" data-msg="คัดลอกข้อมูลทั้งหมดแล้ว" aria-label="คัดลอกข้อมูลทั้งหมด">คัดลอกทั้งหมด</button>'}
+function allText(b){return["ชื่อสาขา: "+b.th,"เบอร์โทร: "+(b.phone||"-"),"เวลาเปิด-ปิด: "+(b.hours||"-"),"โซน: "+(b.zone||"-")].join("\n")}
+function rallText(o){return["ชื่อสาขา: "+o.name,"เบอร์โทร: "+(o.phone||"-"),"เวลาเปิด-ปิด: "+(o.hours||"-"),"รายละเอียด: "+(o.details||"-")].join("\n")}
 function row(label,html){return"<dt>"+label+"</dt><dd>"+html+"</dd>"}
 function val(text,terms,label){
   if(!text)return'<span style="color:var(--muted)">-</span>';
@@ -415,17 +419,17 @@ function card(b,t){
     row("โซน",val(b.zone,t,"โซน"))+
     row("แท็ก",val(b.tag,t,"แท็ก"))+
     row("ผู้ดูแล",hl(b.owner||"-",t))+
-    '</dl><div class="cardfoot"><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
+    '</dl><div class="cardfoot">'+allBtn(allText(b))+'<button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
 }
 function table(list,t){
   var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>แท็ก</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
   list.forEach(function(b){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
-      '<td class="nowrap">'+hl(b.phone,t)+'</td>'+
+      '<td class="nowrap">'+(b.phone?'<div class="val"><a class="tel" href="tel:'+esc(b.phone.replace(/[^0-9+]/g,""))+'">'+hl(b.phone,t)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
       '<td>'+val(b.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(b.zone,t,"โซน")+'</td>'+
       '<td><span class="pill '+(b.hok?"yes":"no")+'" style="margin:0">'+(b.hok?"มี":"ไม่มี")+'</span></td>'+
-      '<td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td><button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
+      '<td>'+hl(b.tag||"-",t)+'</td><td class="nowrap">'+hl(b.owner||"-",t)+'</td><td class="nowrap">'+allBtn(allText(b))+' <button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
@@ -682,7 +686,7 @@ function rcard(o,t){
     row("รายละเอียด",val(o.details,t,"รายละเอียด"))+
     row("แท็ก",val(o.tag,t,"แท็ก"))+
     row("แอเรีย",hl(o.area||"-",t))+
-    '</dl><div class="cardfoot"><button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></div></article>';
+    '</dl><div class="cardfoot">'+allBtn(rallText(o))+'<button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></div></article>';
 }
 function renderRest(){
   var out=$("out");$("count").textContent="";
@@ -709,7 +713,7 @@ function rtable(list,t){
       '<td class="nowrap">'+(o.phone?'<div class="val"><a class="tel" href="tel:'+esc(o.phone.replace(/[^0-9+]/g,""))+'">'+hl(o.phone,t)+'</a>'+copyBtn(o.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
       '<td>'+val(o.hours,t,"เวลาเปิด-ปิด")+'</td><td>'+val(o.details,t,"รายละเอียด")+'</td><td>'+val(o.tag,t,"แท็ก")+'</td>'+
       '<td class="nowrap">'+hl(o.area||"-",t)+'</td>'+
-      '<td><button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></td></tr>';
+      '<td class="nowrap">'+allBtn(rallText(o))+' <button class="btn small" type="button" data-redit="'+esc(o.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
@@ -785,8 +789,8 @@ function fallbackCopy(text){
   var ok=false;try{ok=document.execCommand("copy")}catch(e){}
   document.body.removeChild(ta);return ok;
 }
-function doCopy(text){
-  var done=function(ok){toast(ok?"คัดลอกแล้ว: "+text:"คัดลอกไม่สำเร็จ ลองกดค้างที่ข้อความ")};
+function doCopy(text,msg){
+  var done=function(ok){toast(ok?(msg||"คัดลอกแล้ว: "+text):"คัดลอกไม่สำเร็จ ลองกดค้างที่ข้อความ")};
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(function(){done(true)},function(){done(fallbackCopy(text))});
   }else done(fallbackCopy(text));
@@ -892,7 +896,7 @@ $("v-table").addEventListener("click",function(){setView("table")});
 $("rv-cards").addEventListener("click",function(){setView("cards")});
 $("rv-table").addEventListener("click",function(){setView("table")});
 $("out").addEventListener("click",function(e){
-  var c=e.target.closest(".copy");if(c){doCopy(c.dataset.copy);return}
+  var c=e.target.closest(".copy");if(c){doCopy(c.dataset.copy,c.dataset.msg);return}
   var ed=e.target.closest("[data-edit]");if(ed){openSheet(ed.dataset.edit);return}
   if(e.target.closest("#add")){openSheet(null);return}
   if(e.target.closest("#retry")){load();return}

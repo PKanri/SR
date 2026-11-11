@@ -185,19 +185,44 @@ img{max-width:100%}
 .cardfoot{margin-top:12px;display:flex;justify-content:flex-end;gap:8px;align-items:center}
 .copyall{height:32px;color:var(--accent);border-color:var(--accent)}
 .btn.small{height:32px;padding:0 12px;font-size:13px}
+
+/* nav: two groups (branches | product codes). Mobile = top row with a vertical divider, desktop = left sidebar */
+.tabgroup{display:flex;gap:2px;flex:none}
+.tabgroup-l{display:none}
+.tabsep{flex:none;width:1px;background:var(--line);margin:8px 8px;align-self:stretch}
+.tabs{padding-top:12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:6;background:var(--bg)}
+header.top{top:calc(58px + env(safe-area-inset-top,0px))}
+@media (min-width:860px){
+  .wrap{max-width:1400px;display:grid;grid-template-columns:210px minmax(0,1fr);column-gap:24px;align-items:start}
+  .wrap>*{grid-column:2}
+  .wrap>nav.tabs{grid-column:1;grid-row:1 / span 8;position:sticky;top:env(safe-area-inset-top,0px);align-self:start;flex-direction:column;overflow:visible;border:0;margin:0;padding:20px 0 0;gap:0}
+  header.top{top:env(safe-area-inset-top,0px)}
+  .tabgroup{flex-direction:column;gap:2px}
+  .tabgroup-l{display:block;font-size:12px;color:var(--muted);padding:4px 14px 6px;letter-spacing:.02em}
+  .tabsep{width:auto;height:1px;margin:14px 0 10px;align-self:auto}
+  .tabs button{width:100%;text-align:left;border:0;border-left:3px solid transparent;border-radius:0 8px 8px 0;margin:0;padding:10px 14px;min-height:42px}
+  .tabs button[aria-current="page"]{border-left-color:var(--accent);background:var(--accent-soft)}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
-    <h1>Search Box สาขา Secret<small id="sub">ข้อมูลสาขา Secret Recipe</small></h1>
-    <nav class="tabs" aria-label="หน้า">
+  <nav class="tabs" aria-label="หน้า">
+    <div class="tabgroup" role="group" aria-label="สาขา">
+      <span class="tabgroup-l">สาขา</span>
       <button id="t-search" type="button" data-page="search">สาขาSR</button>
       <button id="t-rest" type="button" data-page="restaurants">สาขาPonn/Malakor</button>
+    </div>
+    <div class="tabsep" role="separator"></div>
+    <div class="tabgroup" role="group" aria-label="รหัสสินค้า">
+      <span class="tabgroup-l">รหัสสินค้า</span>
       <button id="t-products" type="button" data-page="products">Secret Recipe</button>
       <button id="t-bellinee" type="button" data-page="bellinee">Bellinee</button>
       <button id="t-oem" type="button" data-page="oem">OEM</button>
-          </nav>
+    </div>
+  </nav>
+  <header class="top">
+    <h1>Search Box สาขา Secret<small id="sub">ข้อมูลสาขา Secret Recipe</small></h1>
     <div class="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search" placeholder="พิมพ์ชื่อสาขา เช่น แฟ, central, 181, ตี๋" aria-label="ค้นหาสาขา">

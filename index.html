@@ -841,7 +841,7 @@ function sheetRows(cat,csv){
     var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
     if(cat==="bellinee"){
       if(i===0&&t(2).toLowerCase()==="code")return;
-      out.push({code:t(2),nameTh:t(0),name:t(1)});
+      out.push({code:t(2),nameTh:t(0),name:t(1),price:parsePrice(r[3])});
     }else{
       if(i===0&&t(1).toLowerCase()==="code")return;
       out.push({code:t(1),unit:t(0),name:t(2),perUnit:t(3),price:parsePrice(r[4])});
@@ -849,7 +849,7 @@ function sheetRows(cat,csv){
   });
   return out;
 }
-var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
+var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"],["price","ราคา"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
 function buildPlan(cat,srows){
   var cur=plist(),map={},seen={},dupSheet=0,add=[],upd=[],same=0;
   cur.forEach(function(p){if(p.code&&!map[p.code])map[p.code]=p});
@@ -887,14 +887,15 @@ async function syncApply(){
   var st=syncState;if(!st||!st.plan||st.busy)return;
   var plan=st.plan,cat=plan.cat;
   syncState={cat:cat,busy:true,msg:"กำลังอัปเดตข้อมูล…"};render();
-  var failed=0,added=0,updated=0,errMsg="";
+  var failed=0,added=0,updated=0,deleted=0,errMsg="";
   try{
     if(plan.add.length){
       var order=products.reduce(function(m,x){return Math.max(m,x.order||0)},0);
       var recs=plan.add.map(function(s,i){
         var o={catalog:cat,sort_order:order+i+1,code:s.code,name:s.name||"",name_th:"",unit:"",per_unit:"",price:null};
+        o.price=s.price;
         if(cat==="bellinee")o.name_th=s.nameTh||"";
-        else{o.unit=s.unit||"";o.per_unit=s.perUnit||"";o.price=s.price}
+        else{o.unit=s.unit||"";o.per_unit=s.perUnit||""}
         return o;
       });
       var ri=await sb.from("products").insert(recs).select();
@@ -909,22 +910,29 @@ async function syncApply(){
       }));
       res.forEach(function(x){if(x.error){failed++;errMsg=errMsg||explain(x.error,"products")}else if(!x.data||!x.data.length){failed++;errMsg=errMsg||"ไม่มีสิทธิ์แก้ไข (รัน open_edit.sql)"}else updated++});
     }
+    for(var j=0;j<plan.missing.length;j+=50){
+      var ids=plan.missing.slice(j,j+50).map(function(p){return p.id});
+      var rd=await sb.from("products").delete().in("id",ids).select();
+      if(rd.error){failed+=ids.length;errMsg=errMsg||explain(rd.error,"products")}
+      else{deleted+=(rd.data||[]).length;if((rd.data||[]).length<ids.length){failed+=ids.length-(rd.data||[]).length;errMsg=errMsg||"ลบบางรายการไม่ได้ (ไม่มีสิทธิ์ลบ — รัน open_edit.sql)"}}
+    }
   }catch(e){failed++;errMsg=explain(e,"products")}
   await loadProducts(true);
-  syncState={cat:cat,done:true,added:added,updated:updated,failed:failed,errMsg:errMsg};
+  syncState={cat:cat,done:true,added:added,updated:updated,deleted:deleted,failed:failed,errMsg:errMsg};
   render();
 }
 function syncPanel(){
   var s=syncState;if(!s||s.cat!==curCat())return"";
   if(s.busy)return'<div class="syncbox" role="status"><b>'+esc(s.msg)+'</b></div>';
   if(s.error)return'<div class="syncbox err" role="alert"><b>'+esc(s.error)+'</b><div class="srow"><button id="psync" class="btn" type="button">ลองใหม่</button><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
-  if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' รายการ'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' · ลบ '+(s.deleted||0)+' รายการ'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
   var p=s.plan,li=function(a,f){return a.slice(0,8).map(f).join("")+(a.length>8?'<li>…และอีก '+(a.length-8)+' รายการ</li>':"")};
   var fmt=function(v){return v===""||v===null||v===undefined?"ว่าง":String(v)};
-  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · มีในแอปแต่ไม่มีในชีต '+p.missing.length+' (ไม่ลบ)':'')+(p.dupSheet?' · รหัสซ้ำในชีต '+p.dupSheet+' (ใช้แถวแรก)':'')+'</div>';
+  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · ไม่มีในชีต (จะลบ) '+p.missing.length:'')+(p.dupSheet?' · รหัสซ้ำในชีต '+p.dupSheet+' (ใช้แถวแรก)':'')+'</div>';
   if(p.add.length)h+='<div style="margin-top:8px">จะเพิ่ม:</div><ul>'+li(p.add,function(a){return'<li>'+esc(a.code)+' '+esc(a.nameTh||a.name)+'</li>'})+'</ul>';
   if(p.upd.length)h+='<div style="margin-top:8px">จะแก้ไข:</div><ul>'+li(p.upd,function(u){return'<li>'+esc(u.code)+' '+u.ch.map(function(c){return esc(c.label)+': '+esc(fmt(c.from))+' → '+esc(fmt(c.to))}).join(' | ')+'</li>'})+'</ul>';
-  var none=!p.add.length&&!p.upd.length;
+  if(p.missing.length)h+='<div style="margin-top:8px;color:var(--danger,#ff6b81)"><b>จะลบ (ถูกลบออกจากชีตแล้ว) — ลบแล้วกู้คืนไม่ได้:</b></div><ul>'+li(p.missing,function(m){return'<li>'+esc(m.code)+' '+esc(m.nameTh||m.name)+'</li>'})+'</ul>';
+  var none=!p.add.length&&!p.upd.length&&!p.missing.length;
   h+='<div class="srow">'+(none?'<span>ข้อมูลตรงกับชีตแล้ว ไม่ต้องอัปเดต</span>':'<button id="psync-ok" class="btn primary" type="button">ยืนยันอัปเดต</button>')+'<button id="psync-cancel" class="btn" type="button">'+(none?'ปิด':'ยกเลิก')+'</button></div></div>';
   return h;
 }

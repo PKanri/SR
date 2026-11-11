@@ -225,6 +225,7 @@ header.top{top:calc(58px + env(safe-area-inset-top,0px))}
       <button id="t-products" type="button" data-page="products">Secret Recipe</button>
       <button id="t-bellinee" type="button" data-page="bellinee">Bellinee</button>
       <button id="t-oem" type="button" data-page="oem">OEM</button>
+      <button id="t-sanghiran" type="button" data-page="sanghiran">Sanghiran</button>
     </div>
   </nav>
   <header class="top">
@@ -348,7 +349,7 @@ header.top{top:calc(58px + env(safe-area-inset-top,0px))}
     <div class="field"><label for="pf-name" id="pf-name-l">ชื่อสินค้า <i>*</i></label><textarea id="pf-name"></textarea></div>
     <div class="field"><label for="pf-code">รหัสสินค้า</label><input id="pf-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="FG-200-0000"></div>
     <div class="two">
-      <div class="field"><label for="pf-unit" id="pf-unit-l">หน่วย</label><input id="pf-unit" type="text" list="unitlist" autocomplete="off"></div>
+      <div class="field" id="pf-unit-wrap"><label for="pf-unit" id="pf-unit-l">หน่วย</label><input id="pf-unit" type="text" list="unitlist" autocomplete="off"></div>
       <div class="field"><label for="pf-price">ราคา (บาท)</label><input id="pf-price" type="text" inputmode="decimal" autocomplete="off"></div>
     </div>
     <div id="pf-per-wrap" class="field" hidden><label for="pf-per">บรรจุต่อหน่วย (Perunit)</label><input id="pf-per" type="text" autocomplete="off" placeholder="เช่น 12 หรือ 10 ถ้วย/แพ็ค"></div>
@@ -498,14 +499,15 @@ function render(){
     $("t-products").setAttribute("aria-current",state.page==="products"?"page":"false");
   $("t-bellinee").setAttribute("aria-current",state.page==="bellinee"?"page":"false");
   $("t-oem").setAttribute("aria-current",state.page==="oem"?"page":"false");
+  $("t-sanghiran").setAttribute("aria-current",state.page==="sanghiran"?"page":"false");
   $("controls").hidden=state.page!=="search";
   $("pcontrols").hidden=!isProd;
   $("rcontrols").hidden=state.page!=="restaurants";
   $("t-rest").setAttribute("aria-current",state.page==="restaurants"?"page":"false");
   $("clear").hidden=!state.q;
   $("login").hidden=!((isEdit||(isProd&&loginAsk))&&!session&&sb);
-  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"สาขา Ponn / Malakor":"สาขาSecret Recipe");
-  $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา หรือ ID เช่น ป้อน, มะละกอ, 38":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"ชื่อสาขา (ไทย/อังกฤษ) หรือรหัสสาขา เช่น แฟ, central, 181";
+  $("sub").textContent=isProd?(state.page==="bellinee"?"รหัสสินค้า Bellinee":state.page==="oem"?"รหัสสินค้า OEM":state.page==="sanghiran"?"รหัสสินค้า Sanghiran (แสงหิรัญ)":"รหัสสินค้า Secret Recipe"):(state.page==="restaurants"?"สาขา Ponn / Malakor":"สาขาSecret Recipe");
+  $("q").placeholder=state.page==="restaurants"?"ชื่อสาขา หรือ ID เช่น ป้อน, มะละกอ, 38":isProd?(state.page==="bellinee"?"ชื่อหรือรหัส เช่น ชีส, 0074":state.page==="oem"?"ชื่อหรือรหัส เช่น Cheesecake, 1064":state.page==="sanghiran"?"ชื่อหรือรหัส เช่น Mandarin, 1102":"ชื่อหรือรหัส เช่น Red Velvet, 1224"):"ชื่อสาขา (ไทย/อังกฤษ) หรือรหัสสาขา เช่น แฟ, central, 181";
   $("q").setAttribute("aria-label",isProd?"ค้นหาสินค้า":"ค้นหาสาขา");
   if(state.page==="restaurants"){renderRest();return}
   if(isProd){renderProducts();return}
@@ -534,9 +536,9 @@ function render(){
 
 
 /* ---------- products page ---------- */
-function isProdName(p){return p==="products"||p==="bellinee"||p==="oem"}
+function isProdName(p){return p==="products"||p==="bellinee"||p==="oem"||p==="sanghiran"}
 function isProdPage(){return isProdName(state.page)}
-function curCat(){return state.page==="bellinee"?"bellinee":state.page==="oem"?"oem":"secret"}
+function curCat(){return state.page==="bellinee"?"bellinee":state.page==="oem"?"oem":state.page==="sanghiran"?"sanghiran":"secret"}
 function plist(){var c=curCat();return products.filter(function(p){return p.cat===c})}
 function pFromRow(r){return{perUnit:r.per_unit||"",cat:r.catalog||"secret",nameTh:r.name_th||"",id:r.id,order:r.sort_order||0,unit:r.unit||"",name:r.name||"",code:r.code||"",price:(r.price===null||r.price===undefined||r.price==="")?null:Number(r.price),updatedAt:r.updated_at||""}}
 function pToRow(o){return{per_unit:o.perUnit,catalog:o.cat,name_th:o.nameTh,sort_order:o.order,unit:o.unit,name:o.name,code:o.code,price:o.price}}
@@ -598,6 +600,7 @@ function renderProducts(){
     out.innerHTML='<div class="empty"><b>โหลดข้อมูลสินค้าไม่สำเร็จ</b>'+esc(perror)+'<br><br><button id="pretry" class="btn primary" type="button">ลองใหม่</button></div>';return;
   }
   if(!ploaded){$("count").textContent="";out.innerHTML="";return}
+  $("punit").hidden=curCat()==="sanghiran";
   $("punit").value=state.unit;$("psort").value=state.psort;
   var r=pFiltered(),list=r.list,dups=codeCounts();
   var who=session&&session.user&&session.user.email?session.user.email:"";
@@ -641,7 +644,9 @@ function openP(id){
   var bel=(p?p.cat:curCat())==="bellinee";
   $("pf-th-wrap").hidden=!bel;$("pf-th").value=p?(p.nameTh||""):"";$("pf-th").removeAttribute("aria-invalid");
   var oem=(p?p.cat:curCat())==="oem";
-  $("pf-per-wrap").hidden=!oem;$("pf-per").value=p?(p.perUnit||""):"";$("pf-unit-l").textContent=oem?"ประเภท (Type)":"หน่วย";
+  var sang=(p?p.cat:curCat())==="sanghiran";
+  $("pf-unit-wrap").hidden=sang;
+  $("pf-per-wrap").hidden=!(oem||sang);$("pf-per").value=p?(p.perUnit||""):"";$("pf-unit-l").textContent=oem?"ประเภท (Type)":"หน่วย";
   $("pf-name-l").innerHTML=bel?"ชื่ออังกฤษ":"ชื่อสินค้า <i>*</i>";
   $("psave").disabled=false;pBusy=false;
   $("psheet").hidden=false;
@@ -654,7 +659,7 @@ async function saveP(){
   var o={};PF.forEach(function(k){o[k]=$("pf-"+k).value.trim().replace(/\s+/g," ")});
   var cur0=pEditing?products.filter(function(x){return x.id===pEditing})[0]:null;
   o.cat=cur0?cur0.cat:curCat();
-  o.perUnit=o.cat==="oem"?$("pf-per").value.trim().replace(/\s+/g," "):"";
+  o.perUnit=(o.cat==="oem"||o.cat==="sanghiran")?$("pf-per").value.trim().replace(/\s+/g," "):"";
   o.nameTh=o.cat==="bellinee"?$("pf-th").value.trim().replace(/\s+/g," "):"";
   if(o.cat==="bellinee"?(!o.nameTh&&!o.name):!o.name){var bf=o.cat==="bellinee"?"pf-th":"pf-name";$(bf).setAttribute("aria-invalid","true");showPerr(o.cat==="bellinee"?"กรอกชื่อไทยหรือชื่ออังกฤษ":"กรอกชื่อสินค้า");$(bf).focus();return}
   var ptxt=$("pf-price").value.replace(/[,\s฿]/g,"");
@@ -820,9 +825,9 @@ async function removeR(){
 }
 
 
-/* ---------- sync from Google Sheet (Bellinee, OEM) ---------- */
+/* ---------- sync from Google Sheet (Bellinee, OEM, Sanghiran) ---------- */
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
-var SHEET_GID={bellinee:"670638780",oem:"1114306811"};
+var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237"};
 var syncState=null;
 /* write-through: web edits -> Google Sheet via Apps Script web app (optional; set SHEET_WEBAPP_URL in config.js) */
 async function sheetPush(payload){
@@ -859,6 +864,9 @@ function sheetRows(cat,csv){
     if(cat==="bellinee"){
       if(i===0&&t(2).toLowerCase()==="code")return;
       out.push({code:t(2),nameTh:t(0),name:t(1),price:parsePrice(r[3])});
+    }else if(cat==="sanghiran"){
+      if(i===0&&t(0).toLowerCase()==="code")return;
+      out.push({code:t(0),name:t(1),perUnit:t(2),price:parsePrice(r[3])});
     }else{
       if(i===0&&t(1).toLowerCase()==="code")return;
       out.push({code:t(1),unit:t(0),name:t(2),perUnit:t(3),price:parsePrice(r[4])});
@@ -866,7 +874,7 @@ function sheetRows(cat,csv){
   });
   return out;
 }
-var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"],["price","ราคา"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
+var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"],["price","ราคา"]],sanghiran:[["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
 function buildPlan(cat,srows){
   var cur=plist(),map={},seen={},dupSheet=0,add=[],upd=[],same=0;
   cur.forEach(function(p){if(p.code&&!map[p.code])map[p.code]=p});
@@ -1106,7 +1114,7 @@ $("login").addEventListener("submit",doLogin);
 $("del").addEventListener("click",removeBranch);
 $("sheet").addEventListener("click",function(e){if(e.target.closest("[data-close]"))closeSheet()});
 document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(!$("sheet").hidden)closeSheet();if(!$("psheet").hidden)closeP();if(!$("rsheet").hidden)closeR()});
-function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#restaurants"?"restaurants":"search"}
+function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#sanghiran"?"sanghiran":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
   if(p!==state.page){state.q="";$("q").value=""}
   syncState=null;

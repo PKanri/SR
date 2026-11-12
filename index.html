@@ -1040,8 +1040,24 @@ function syncPanel(){
 var bsync=null;
 function branchRow(b){
   var a=daysArr(b.days),any=a.length>0,row={code:b.code,nameTh:b.th,name:b.en,phone:b.phone,hours:b.hours,zone:b.zone,hok:!!b.hok,tag:b.tag,owner:b.owner};
-  for(var i=1;i<=7;i++)row["d"+i]=a.indexOf(i)>-1?1:(any?0:"");
+  row.days=a.map(function(n){return DAYS[n-1][1]}).join(", ");
   return row;
+}
+function parseDaysText(s){
+  var out=[];
+  String(s||"").replace(/\./g,"").split(/[,;\/\s]+/).forEach(function(w){
+    if(!w)return;var n=0;
+    if(/^(จันทร์|จัทนร์|จ)$/.test(w))n=1;
+    else if(/^(อังคาร|อ)$/.test(w))n=2;
+    else if(/^(พุธ|พุทธ|พ)$/.test(w))n=3;
+    else if(/^(พฤหัสบดี|พฤหัส|พฤ)$/.test(w))n=4;
+    else if(/^(ศุกร์|ศ)$/.test(w))n=5;
+    else if(/^(เสาร์|ส)$/.test(w))n=6;
+    else if(/^(อาทิตย์|อา)$/.test(w))n=7;
+    else if(/^ทุกวัน$/.test(w)){out=[1,2,3,4,5,6,7];return}
+    if(n&&out.indexOf(n)<0)out.push(n);
+  });
+  return out.sort(function(a,b){return a-b});
 }
 function bSheetRows(csv){
   var rows=parseCSV(csv).filter(function(r){return r.some(function(x){return x.trim()})}),out=[];
@@ -1049,9 +1065,11 @@ function bSheetRows(csv){
     var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
     var o={phone:t(0),th:t(1),en:t(2),hours:t(3),zone:t(4),tag:t(6),code:t(7),owner:t(8)};
     var hk=t(5);if(hk==="/")o.hok=true;else if(hk==="-")o.hok=false;
-    var flags=[];var any=false;
-    for(var i=0;i<7;i++){var v=t(11+i);if(v!=="")any=true;if(v==="1")flags.push(i+1)}
-    if(any)o.days=flags.join(",");
+    var dj=parseDaysText(t(9));
+    if(dj.length)o.days=dj.join(",");
+    else{var flags=[],any=false;   // ชีตเก่า: คอลัมน์ L-Q เป็น 0/1 จันทร์-เสาร์
+      for(var i=0;i<7;i++){var v=t(11+i);if(v!=="")any=true;if(v==="1")flags.push(i+1)}
+      if(any)o.days=flags.join(",")}
     out.push(o);
   });
   return out;

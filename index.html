@@ -983,7 +983,8 @@ function buildPlan(cat,srows){
     if(ch.length)upd.push({id:ex.id,code:s.code,label:ex.nameTh||ex.name,ch:ch});else same++;
   });
   var missing=cur.filter(function(p){return p.code&&!seen[p.code]}),keep=0;
-  if(cat==="secret"){keep=missing.length;missing=[]}   // แท็บ Product SR มีไม่ครบทุกรายการ ไม่ลบอะไรที่ไม่อยู่ในชีต
+  // Secret Recipe: ให้เหลือเฉพาะรายการใน Product SR — ลบรายการที่ไม่มีรหัส และรหัสซ้ำที่เกินด้วย
+  if(cat==="secret")missing=cur.filter(function(p){return !p.code||!seen[p.code]||map[p.code]!==p});
   return{cat:cat,keep:keep,add:add,upd:upd,same:same,missing:missing,dupSheet:dupSheet,total:srows.length};
 }
 async function syncStart(){

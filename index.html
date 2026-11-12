@@ -143,6 +143,7 @@ td.nowrap{white-space:nowrap}
 .syncbox b{font-size:15px}
 .syncbox ul{margin:6px 0 0;padding-left:20px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
 .syncbox .srow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.cpgrid{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0}.cpprev{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:12px/1.4 monospace;padding:8px;white-space:pre;overflow:auto}.cpi{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}.cpi input{width:18px;height:18px;accent-color:var(--accent)}
 .syncbox.ok{border-color:var(--ok)}.syncbox.err{border-color:var(--danger)}
 .editbar .count{margin:0;flex:1}
 .elist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:8px}
@@ -592,10 +593,10 @@ function render(){
     $("count").textContent="";
     $("out").innerHTML='<div class="empty"><b>โหลดข้อมูลไม่สำเร็จ</b>'+esc(loadError)+'<br><br><button id="retry" class="btn primary" type="button">ลองใหม่</button></div>';return;
   }
-  var r=filtered(),list=r.list;
+  var r=filtered(),list=r.list;cpCtx="b";
   if(isEdit){renderEdit(r);return}
   $("count").textContent="";
-  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><span class="barbtns"><button id="bsync" class="btn" type="button"'+(bsync&&bsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></span></div>'+bsyncPanel();
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><span class="barbtns"><button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="bsync" class="btn" type="button"'+(bsync&&bsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></span></div>'+cpPanel(list.length)+bsyncPanel();
   $("v-cards").setAttribute("aria-pressed",state.view==="cards");
   $("v-table").setAttribute("aria-pressed",state.view==="table");
   document.querySelectorAll(".chip[data-hok]").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.hok===state.hok)});
@@ -605,7 +606,9 @@ function render(){
     return;
   }
   $("out").innerHTML=bar+(state.view==="table"?table(list,r.terms):'<div class="cards">'+list.map(function(b){return card(b,r.terms)}).join("")+'</div>');
+  cpPrev();
 }
+function cpPrev(){var t=$("cpprev");if(!t)return;var r=cpText();t.value=r?r.text:"(ยังไม่ได้ติ๊กคอลัมน์)"}
 
 
 /* ---------- products page ---------- */
@@ -818,12 +821,13 @@ function renderRest(){
   });
   if(rsort==="name")list=list.slice().sort(function(a,b){return a.name.localeCompare(b.name,"th")});
   else if(rsort==="code")list=list.slice().sort(function(a,b){return (parseInt(a.shop)||0)-(parseInt(b.shop)||0)});
-  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></div>';
+  cpCtx="r";cpRL=list;
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><span class="barbtns"><button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></span></div>'+cpPanel(list.length);
   if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบร้านที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง</div>';return}
   $("rsort").value=rsort;
   $("rv-cards").setAttribute("aria-pressed",state.view==="cards");
   $("rv-table").setAttribute("aria-pressed",state.view==="table");
-  out.innerHTML=bar+(state.view==="table"?rtable(list,terms):'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>');
+  out.innerHTML=bar+(state.view==="table"?rtable(list,terms):'<div class="cards">'+list.map(function(o){return rcard(o,terms)}).join("")+'</div>');cpPrev();
 }
 function rtable(list,t){
   var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>ID</th><th>เบอร์หน้าร้าน</th><th>เวลาเปิด-ปิด</th><th>รายละเอียด</th><th>แท็ก</th><th>แอเรีย</th><th></th></tr></thead><tbody>';
@@ -1161,6 +1165,44 @@ function bsyncPanel(){
   return h;
 }
 
+
+/* ---------- copy selected columns of filtered rows ---------- */
+var CP_B=[["th","ชื่อไทย"],["en","ชื่ออังกฤษ"],["code","รหัส"],["phone","เบอร์โทร"],["hours","เวลาเปิด-ปิด"],["zone","โซน"],["hok","Hokkaido"],["days","รอบรถ"],["tag","แท็ก"],["owner","แอเรีย"]];
+var CP_R=[["name","ชื่อร้าน"],["brand","แบรนด์"],["shop","รหัส"],["phone","เบอร์โทร"],["hours","เวลาเปิด-ปิด"],["details","รายละเอียด"],["tag","แท็ก"],["area","แอเรีย"]];
+var cpOpen=false,cpCtx="b",cpRL=[],cpSels={b:{th:1,code:1,phone:1},r:{name:1,shop:1,phone:1}},cpHead=true;
+try{["b","r"].forEach(function(k){var v=JSON.parse(localStorage.getItem("sr-cpcols-"+k)||"null");if(v&&typeof v==="object")cpSels[k]=v});var _ch=localStorage.getItem("sr-cphead");if(_ch!==null)cpHead=_ch==="1"}catch(e){}
+function cpCols(){return cpCtx==="r"?CP_R:CP_B}
+function cpSel(){return cpSels[cpCtx]}
+function cpList(){return cpCtx==="r"?cpRL:filtered().list}
+function cpVal(b,k){
+  if(k==="hok")return b.hok?"มี":"ไม่มี";
+  if(k==="days")return daysArr(b.days).map(function(n){return DAYS[n-1][1]}).join(", ");
+  return String(b[k]==null?"":b[k]).replace(/[\t\r\n]+/g," ").trim();
+}
+function cpPanel(n){
+  if(!cpOpen)return"";
+  var sel=cpSel();
+  var h='<div class="syncbox" role="group" aria-label="เลือกคอลัมน์ที่จะคัดลอก"><b>เลือกข้อมูลที่จะคัดลอก ('+n+(cpCtx==="r"?' ร้าน':' สาขา')+'ตามที่กรองอยู่)</b><div class="cpgrid">';
+  cpCols().forEach(function(c){h+='<label class="cpi"><input type="checkbox" data-cpcol="'+c[0]+'"'+(sel[c[0]]?' checked':'')+'> '+c[1]+'</label>'});
+  h+='</div><label class="cpi"><input type="checkbox" id="cphead"'+(cpHead?' checked':'')+'> ใส่หัวคอลัมน์ (บรรทัดแรก)</label>';
+  h+='<div class="srow"><button id="cpgo" class="btn primary" type="button">คัดลอก</button><button id="cpall" class="btn" type="button">เลือกทั้งหมด</button><button id="cpnone" class="btn" type="button">ล้าง</button><button id="cpclose" class="btn" type="button">ปิด</button></div><div class="count" style="margin-top:8px">ตัวอย่างข้อความที่จะคัดลอก:</div><textarea id="cpprev" class="cpprev" readonly rows="4"></textarea><div class="count" style="margin-top:8px">คัดลอกเป็นแท็บคั่น วางลง Google Sheet / Excel แล้วแยกคอลัมน์ให้เอง</div></div>';
+  return h;
+}
+function cpSave(){try{localStorage.setItem("sr-cpcols-"+cpCtx,JSON.stringify(cpSel()));localStorage.setItem("sr-cphead",cpHead?"1":"0")}catch(e){}}
+function cpText(){
+  var sel=cpSel(),cols=cpCols().filter(function(c){return sel[c[0]]});
+  if(!cols.length)return null;
+  var list=cpList(),lines=[];
+  if(cpHead)lines.push(cols.map(function(c){return c[1]}).join("\t"));
+  list.forEach(function(b){lines.push(cols.map(function(c){return cpVal(b,c[0])}).join("\t"))});
+  return{text:lines.join("\n"),n:list.length,c:cols.length};
+}
+function cpDo(){
+  var r=cpText();
+  if(!r){toast("ติ๊กเลือกอย่างน้อย 1 คอลัมน์");return}
+  doCopy(r.text,"คัดลอกแล้ว "+r.n+(cpCtx==="r"?" ร้าน":" สาขา")+" × "+r.c+" คอลัมน์");
+}
+
 /* ---------- toast + copy ---------- */
 var tt;
 function toast(msg,ms){
@@ -1276,6 +1318,9 @@ async function doLogin(ev){
 }
 
 /* ---------- events ---------- */
+document.addEventListener("change",function(e){var t=e.target;
+  if(t.dataset&&t.dataset.cpcol){if(t.checked)cpSel()[t.dataset.cpcol]=1;else delete cpSel()[t.dataset.cpcol];cpSave();cpPrev()}
+  else if(t.id==="cphead"){cpHead=t.checked;cpSave();cpPrev()}});
 $("q").addEventListener("input",function(e){state.q=e.target.value;state.plimit=100;render()});
 $("clear").addEventListener("click",function(){state.q="";$("q").value="";render();$("q").focus()});
 $("sort").addEventListener("change",function(e){state.sort=e.target.value;render()});
@@ -1294,6 +1339,11 @@ $("out").addEventListener("click",function(e){
   var re_=e.target.closest("[data-redit]");if(re_){openR(re_.dataset.redit);return}
   if(e.target.closest("#radd")){openR(null);return}
   if(e.target.closest("#rretry")){loadRest();return}
+  if(e.target.closest("#cpbtn")){cpOpen=!cpOpen;render();return}
+  if(e.target.closest("#cpclose")){cpOpen=false;render();return}
+  if(e.target.closest("#cpgo")){cpDo();return}
+  if(e.target.closest("#cpall")){cpCols().forEach(function(c){cpSel()[c[0]]=1});cpSave();render();return}
+  if(e.target.closest("#cpnone")){cpSels[cpCtx]={};cpSave();render();return}
   if(e.target.closest("#bsync")){bsyncStart();return}
   if(e.target.closest("#bsync-ok")){bsyncApply();return}
   if(e.target.closest("#bsync-cancel")){bsync=null;render();return}

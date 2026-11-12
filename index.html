@@ -144,6 +144,12 @@ td.nowrap{white-space:nowrap}
 .syncbox ul{margin:6px 0 0;padding-left:20px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
 .syncbox .srow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .cpgrid{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0}.cpprev{width:100%;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:12px/1.4 monospace;padding:8px;white-space:pre;overflow:auto}.cpi{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}.cpi input{width:18px;height:18px;accent-color:var(--accent)}
+.totop{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:20;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:20px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+.totop[hidden]{display:none}
+.cpi{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--bg)}
+.cpi:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+@media (max-width:560px){.editbar .btn{height:36px;padding:0 12px;font-size:13px}.editbar .barbtns{margin-left:0;width:100%}.editbar .barbtns .btn{flex:1 1 auto}}
+table thead th{position:sticky;top:0;background:var(--surface)}
 .syncbox.ok{border-color:var(--ok)}.syncbox.err{border-color:var(--danger)}
 .editbar .count{margin:0;flex:1}
 .elist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:8px}
@@ -427,6 +433,7 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
     </div>
   </form>
 </div>
+<button id="totop" class="totop" type="button" aria-label="กลับขึ้นด้านบน" hidden>↑</button>
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -522,7 +529,7 @@ function card(b,t){
     '<span class="code">#'+hl(b.code,t)+'</span></div>'+
     '<span class="pill '+(b.hok?"yes":"no")+'">'+(b.hok?"มี Hokkaido tart":"ไม่มี Hokkaido tart")+'</span>'+
     '<dl>'+
-    row("โทร",'<div class="val"><a class="tel" href="tel:'+esc((b.phone||"").replace(/[^0-9+]/g,""))+'">'+esc(b.phone)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>')+
+    row("โทร",b.phone?'<div class="val"><a class="tel" href="tel:'+esc(b.phone.replace(/[^0-9+]/g,""))+'">'+esc(b.phone)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>':'<span style="color:var(--muted)">-</span>')+
     row("เวลา",val(b.hours,[],"เวลาเปิด-ปิด"))+
     row("โซน",val(b.zone,[],"โซน"))+
     row("แท็ก",val(b.tag,[],"แท็ก"))+
@@ -596,13 +603,13 @@ function render(){
   var r=filtered(),list=r.list;cpCtx="b";
   if(isEdit){renderEdit(r);return}
   $("count").textContent="";
-  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><span class="barbtns"><button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="bsync" class="btn" type="button"'+(bsync&&bsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></span></div>'+cpPanel(list.length)+bsyncPanel();
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><span class="barbtns">'+fclrBtn()+'<button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="bsync" class="btn" type="button"'+(bsync&&bsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></span></div>'+cpPanel(list.length)+bsyncPanel();
   $("v-cards").setAttribute("aria-pressed",state.view==="cards");
   $("v-table").setAttribute("aria-pressed",state.view==="table");
   document.querySelectorAll(".chip[data-hok]").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.hok===state.hok)});
   document.querySelectorAll(".chip[data-day]").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.day===String(state.day))});
   if(!list.length){
-    $("out").innerHTML=bar+'<div class="empty"><b>ไม่พบสาขาที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง หรือค้นด้วยรหัสสาขา เช่น 181</div>';
+    $("out").innerHTML=bar+'<div class="empty"><b>ไม่พบสาขาที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง หรือค้นด้วยรหัสสาขา เช่น 181'+(hasFilter()?'<br><br><button class="btn primary" data-fclr type="button">ล้างตัวกรองทั้งหมด</button>':'')+'</div>';
     return;
   }
   $("out").innerHTML=bar+(state.view==="table"?table(list,r.terms):'<div class="cards">'+list.map(function(b){return card(b,r.terms)}).join("")+'</div>');
@@ -1171,6 +1178,8 @@ var CP_B=[["th","ชื่อไทย"],["en","ชื่ออังกฤษ"]
 var CP_R=[["name","ชื่อร้าน"],["brand","แบรนด์"],["shop","รหัส"],["phone","เบอร์โทร"],["hours","เวลาเปิด-ปิด"],["details","รายละเอียด"],["tag","แท็ก"],["area","แอเรีย"]];
 var cpOpen=false,cpCtx="b",cpRL=[],cpSels={b:{th:1,code:1,phone:1},r:{name:1,shop:1,phone:1}},cpHead=true;
 try{["b","r"].forEach(function(k){var v=JSON.parse(localStorage.getItem("sr-cpcols-"+k)||"null");if(v&&typeof v==="object")cpSels[k]=v});var _ch=localStorage.getItem("sr-cphead");if(_ch!==null)cpHead=_ch==="1"}catch(e){}
+function hasFilter(){return !!(state.q||state.hok!=="all"||state.day!=="all")}
+function fclrBtn(){return hasFilter()?'<button class="btn" data-fclr type="button">ล้างตัวกรอง</button>':""}
 function cpCols(){return cpCtx==="r"?CP_R:CP_B}
 function cpSel(){return cpSels[cpCtx]}
 function cpList(){return cpCtx==="r"?cpRL:filtered().list}
@@ -1318,6 +1327,12 @@ async function doLogin(ev){
 }
 
 /* ---------- events ---------- */
+window.addEventListener("scroll",function(){var t=$("totop");if(t)t.hidden=window.scrollY<500},{passive:true});
+document.addEventListener("keydown",function(e){
+  var el=document.activeElement,typing=el&&/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+  if(e.key==="/"&&!typing&&!e.ctrlKey&&!e.metaKey){e.preventDefault();var q=$("q");if(q){q.focus();q.select()}}
+  else if(e.key==="Escape"&&el&&el.id==="q"&&state.q){state.q="";el.value="";var cl=$("clear");if(cl)cl.hidden=true;render()}
+});
 document.addEventListener("change",function(e){var t=e.target;
   if(t.dataset&&t.dataset.cpcol){if(t.checked)cpSel()[t.dataset.cpcol]=1;else delete cpSel()[t.dataset.cpcol];cpSave();cpPrev()}
   else if(t.id==="cphead"){cpHead=t.checked;cpSave();cpPrev()}});
@@ -1339,6 +1354,8 @@ $("out").addEventListener("click",function(e){
   var re_=e.target.closest("[data-redit]");if(re_){openR(re_.dataset.redit);return}
   if(e.target.closest("#radd")){openR(null);return}
   if(e.target.closest("#rretry")){loadRest();return}
+  if(e.target.closest("[data-fclr]")){state.q="";state.hok="all";state.day="all";$("q").value="";var cl=$("clear");if(cl)cl.hidden=true;render();window.scrollTo({top:0,behavior:"smooth"});return}
+  if(e.target.closest("#totop")){window.scrollTo({top:0,behavior:"smooth"});return}
   if(e.target.closest("#cpbtn")){cpOpen=!cpOpen;render();return}
   if(e.target.closest("#cpclose")){cpOpen=false;render();return}
   if(e.target.closest("#cpgo")){cpDo();return}

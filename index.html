@@ -911,7 +911,9 @@ async function removeR(){
 
 /* ---------- sync from Google Sheet (Bellinee, OEM, Sanghiran) ---------- */
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
-var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360"};
+var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360",secret:"by-name"};
+var SECRET_TAB="Product SR";
+function sheetUrl(cat){return cat==="secret"?"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(SECRET_TAB):"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat]}
 var syncState=null;
 /* write-through: web edits -> Google Sheet via Apps Script web app (optional; set SHEET_WEBAPP_URL in config.js) */
 async function sheetPush(payload){
@@ -945,7 +947,10 @@ function sheetRows(cat,csv){
   var rows=parseCSV(csv).filter(function(r){return r.some(function(x){return x.trim()})}),out=[];
   rows.forEach(function(r,i){
     var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
-    if(cat==="bellinee"){
+    if(cat==="secret"){
+      if(i===0&&t(0).toLowerCase()==="product")return;
+      out.push({code:t(0),name:t(2),price:parsePrice(r[11])});
+    }else if(cat==="bellinee"){
       if(i===0&&t(2).toLowerCase()==="code")return;
       out.push({code:t(2),nameTh:t(0),name:t(1),price:parsePrice(r[3])});
     }else if(cat==="sanghiran"){
@@ -958,7 +963,7 @@ function sheetRows(cat,csv){
   });
   return out;
 }
-var SYNC_FIELDS={bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"],["price","ราคา"]],sanghiran:[["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
+var SYNC_FIELDS={secret:[["name","ชื่อ"],["price","ราคา"]],bellinee:[["nameTh","ชื่อไทย"],["name","ชื่ออังกฤษ"],["price","ราคา"]],sanghiran:[["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]],oem:[["unit","ประเภท"],["name","ชื่อ"],["perUnit","บรรจุ"],["price","ราคา"]]};
 function buildPlan(cat,srows){
   var cur=plist(),map={},seen={},dupSheet=0,add=[],upd=[],same=0;
   cur.forEach(function(p){if(p.code&&!map[p.code])map[p.code]=p});
@@ -977,14 +982,15 @@ function buildPlan(cat,srows){
     });
     if(ch.length)upd.push({id:ex.id,code:s.code,label:ex.nameTh||ex.name,ch:ch});else same++;
   });
-  var missing=cur.filter(function(p){return p.code&&!seen[p.code]});
-  return{cat:cat,add:add,upd:upd,same:same,missing:missing,dupSheet:dupSheet,total:srows.length};
+  var missing=cur.filter(function(p){return p.code&&!seen[p.code]}),keep=0;
+  if(cat==="secret"){keep=missing.length;missing=[]}   // แท็บ Product SR มีไม่ครบทุกรายการ ไม่ลบอะไรที่ไม่อยู่ในชีต
+  return{cat:cat,keep:keep,add:add,upd:upd,same:same,missing:missing,dupSheet:dupSheet,total:srows.length};
 }
 async function syncStart(){
   var cat=curCat();if(!SHEET_GID[cat]||(syncState&&syncState.busy))return;
   syncState={cat:cat,busy:true,msg:"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
   try{
-    var r=await fetch("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat],{cache:"no-store"});
+    var r=await fetch(sheetUrl(cat),{cache:"no-store"});
     if(!r.ok)throw new Error("HTTP "+r.status+" (ชีตอาจไม่ได้เปิดให้ดูด้วยลิงก์)");
     var srows=sheetRows(cat,await r.text());
     if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
@@ -1037,7 +1043,7 @@ function syncPanel(){
   if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' · ลบ '+(s.deleted||0)+' รายการ'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="psync-cancel" class="btn" type="button">ปิด</button></div></div>';
   var p=s.plan,li=function(a,f){return a.slice(0,8).map(f).join("")+(a.length>8?'<li>…และอีก '+(a.length-8)+' รายการ</li>':"")};
   var fmt=function(v){return v===""||v===null||v===undefined?"ว่าง":String(v)};
-  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · ไม่มีในชีต (จะลบ) '+p.missing.length:'')+(p.dupSheet?' · รหัสซ้ำในชีต '+p.dupSheet+' (ใช้แถวแรก)':'')+'</div>';
+  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · ไม่มีในชีต (จะลบ) '+p.missing.length:'')+(p.keep?' · ไม่มีในชีต (คงไว้ ไม่ลบ) '+p.keep:'')+(p.dupSheet?' · รหัสซ้ำในชีต '+p.dupSheet+' (ใช้แถวแรก)':'')+'</div>';
   if(p.add.length)h+='<div style="margin-top:8px">จะเพิ่ม:</div><ul>'+li(p.add,function(a){return'<li>'+esc(a.code)+' '+esc(a.nameTh||a.name)+'</li>'})+'</ul>';
   if(p.upd.length)h+='<div style="margin-top:8px">จะแก้ไข:</div><ul>'+li(p.upd,function(u){return'<li>'+esc(u.code)+' '+u.ch.map(function(c){return esc(c.label)+': '+esc(fmt(c.from))+' → '+esc(fmt(c.to))}).join(' | ')+'</li>'})+'</ul>';
   if(p.missing.length)h+='<div style="margin-top:8px;color:var(--danger,#ff6b81)"><b>จะลบ (ถูกลบออกจากชีตแล้ว) — ลบแล้วกู้คืนไม่ได้:</b></div><ul>'+li(p.missing,function(m){return'<li>'+esc(m.code)+' '+esc(m.nameTh||m.name)+'</li>'})+'</ul>';

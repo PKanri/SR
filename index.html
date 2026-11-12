@@ -328,8 +328,8 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
         <button id="v-table" type="button" aria-pressed="false">ตาราง</button>
       </div>
     </div>
-    <div id="dayrow" class="dayrow" role="group" aria-label="กรองตามวันส่งรถ" style="margin-top:8px">
-      <span class="daylbl">ส่งรถวัน</span>
+    <div id="dayrow" class="dayrow" role="group" aria-label="กรองตามรอบรถ" style="margin-top:8px">
+      <span class="daylbl">รอบรถ</span>
       <button class="chip" type="button" data-day="all" aria-pressed="true">ทุกวัน</button>
       <button class="chip" type="button" data-day="1" aria-pressed="false">จันทร์</button>
       <button class="chip" type="button" data-day="2" aria-pressed="false">อังคาร</button>
@@ -368,8 +368,8 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
     <label class="switch" for="f-hok"><input id="f-hok" type="checkbox"> มีขาย Hokkaido tart</label>
     <div class="field" hidden><label for="f-tag21">แท็ก 21:00</label><input id="f-tag21" type="text" autocomplete="off"></div>
     <div class="field"><label for="f-tag">แท็ก</label><textarea id="f-tag"></textarea></div>
-    <div class="field"><label id="f-days-l">รอบส่งรถ (กดเลือกได้หลายวัน)</label><div class="chips" id="f-days" role="group" aria-labelledby="f-days-l"><button class="chip" type="button" data-fday="1" aria-pressed="false">จันทร์</button><button class="chip" type="button" data-fday="2" aria-pressed="false">อังคาร</button><button class="chip" type="button" data-fday="3" aria-pressed="false">พุธ</button><button class="chip" type="button" data-fday="4" aria-pressed="false">พฤหัส</button><button class="chip" type="button" data-fday="5" aria-pressed="false">ศุกร์</button><button class="chip" type="button" data-fday="6" aria-pressed="false">เสาร์</button><button class="chip" type="button" data-fday="7" aria-pressed="false">อาทิตย์</button></div></div>
-    <div class="field"><label for="f-owner">ผู้ดูแล</label><input id="f-owner" type="text" autocomplete="off"></div>
+    <div class="field"><label id="f-days-l">รอบรถ (กดเลือกได้หลายวัน)</label><div class="chips" id="f-days" role="group" aria-labelledby="f-days-l"><button class="chip" type="button" data-fday="1" aria-pressed="false">จันทร์</button><button class="chip" type="button" data-fday="2" aria-pressed="false">อังคาร</button><button class="chip" type="button" data-fday="3" aria-pressed="false">พุธ</button><button class="chip" type="button" data-fday="4" aria-pressed="false">พฤหัส</button><button class="chip" type="button" data-fday="5" aria-pressed="false">ศุกร์</button><button class="chip" type="button" data-fday="6" aria-pressed="false">เสาร์</button><button class="chip" type="button" data-fday="7" aria-pressed="false">อาทิตย์</button></div></div>
+    <div class="field"><label for="f-owner">แอเรีย</label><input id="f-owner" type="text" autocomplete="off"></div>
     <div id="ferr" class="ferr" role="alert" hidden></div>
     <div class="panel-actions">
       <button type="button" id="del" class="btn danger" hidden>ลบสาขา</button>
@@ -525,12 +525,12 @@ function card(b,t){
     row("เวลา",val(b.hours,[],"เวลาเปิด-ปิด"))+
     row("โซน",val(b.zone,[],"โซน"))+
     row("แท็ก",val(b.tag,[],"แท็ก"))+
-    row("ส่งรถ",dayPills(b.days))+
-    row("ผู้ดูแล",esc(b.owner||"-"))+
+    row("รอบรถ",dayPills(b.days))+
+    row("แอเรีย",esc(b.owner||"-"))+
     '</dl><div class="cardfoot">'+allBtn(allText(b))+'<button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
 }
 function table(list,t){
-  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>รอบส่งรถ</th><th>แท็ก</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
+  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>รอบรถ</th><th>แท็ก</th><th>แอเรีย</th><th></th></tr></thead><tbody>';
   list.forEach(function(b){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
@@ -1074,7 +1074,7 @@ function bSheetRows(csv){
   });
   return out;
 }
-var BSYNC_FIELDS=[["phone","เบอร์โทร"],["th","ชื่อไทย"],["en","ชื่ออังกฤษ"],["hours","เวลา"],["zone","โซน"],["tag","แท็ก"],["hok","Hokkaido"],["days","รอบส่งรถ"],["owner","ผู้ดูแล"]];
+var BSYNC_FIELDS=[["phone","เบอร์โทร"],["th","ชื่อไทย"],["en","ชื่ออังกฤษ"],["hours","เวลา"],["zone","โซน"],["tag","แท็ก"],["hok","Hokkaido"],["days","รอบรถ"],["owner","แอเรีย"]];
 function bNormText(v){return String(v==null?"":v).replace(/\s+/g," ").trim()}
 function bShow(k,v){if(k==="hok")return v?"มี":"ไม่มี";if(k==="days")return daysNames(v,false);return v===""||v==null?"ว่าง":String(v)}
 function bBuildPlan(srows){

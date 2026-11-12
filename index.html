@@ -60,6 +60,11 @@
 .swatch[aria-pressed="true"]{border-color:var(--fg);box-shadow:0 0 0 2px var(--surface) inset}
 .swatch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .swname{margin-top:10px;font-size:13px;color:var(--muted)}
+.dpill{display:inline-block;min-width:32px;text-align:center;padding:2px 7px;border-radius:10px;font-size:12px;border:1px solid var(--line);color:var(--muted);line-height:1.5}
+.dpill.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.dayrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.daylbl{font-size:13px;color:var(--muted);margin-right:2px}
+.dayline{display:flex;gap:4px;flex-wrap:wrap}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
@@ -323,6 +328,17 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
         <button id="v-table" type="button" aria-pressed="false">ตาราง</button>
       </div>
     </div>
+    <div id="dayrow" class="dayrow" role="group" aria-label="กรองตามวันส่งรถ" style="margin-top:8px">
+      <span class="daylbl">ส่งรถวัน</span>
+      <button class="chip" type="button" data-day="all" aria-pressed="true">ทุกวัน</button>
+      <button class="chip" type="button" data-day="1" aria-pressed="false">จันทร์</button>
+      <button class="chip" type="button" data-day="2" aria-pressed="false">อังคาร</button>
+      <button class="chip" type="button" data-day="3" aria-pressed="false">พุธ</button>
+      <button class="chip" type="button" data-day="4" aria-pressed="false">พฤหัส</button>
+      <button class="chip" type="button" data-day="5" aria-pressed="false">ศุกร์</button>
+      <button class="chip" type="button" data-day="6" aria-pressed="false">เสาร์</button>
+      <button class="chip" type="button" data-day="7" aria-pressed="false">อาทิตย์</button>
+    </div>
   </header>
   <div id="note" class="note" role="status" hidden></div>
   <form id="login" class="loginbox" hidden novalidate>
@@ -352,6 +368,7 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
     <label class="switch" for="f-hok"><input id="f-hok" type="checkbox"> มีขาย Hokkaido tart</label>
     <div class="field" hidden><label for="f-tag21">แท็ก 21:00</label><input id="f-tag21" type="text" autocomplete="off"></div>
     <div class="field"><label for="f-tag">แท็ก</label><textarea id="f-tag"></textarea></div>
+    <div class="field"><label id="f-days-l">รอบส่งรถ (กดเลือกได้หลายวัน)</label><div class="chips" id="f-days" role="group" aria-labelledby="f-days-l"><button class="chip" type="button" data-fday="1" aria-pressed="false">จันทร์</button><button class="chip" type="button" data-fday="2" aria-pressed="false">อังคาร</button><button class="chip" type="button" data-fday="3" aria-pressed="false">พุธ</button><button class="chip" type="button" data-fday="4" aria-pressed="false">พฤหัส</button><button class="chip" type="button" data-fday="5" aria-pressed="false">ศุกร์</button><button class="chip" type="button" data-fday="6" aria-pressed="false">เสาร์</button><button class="chip" type="button" data-fday="7" aria-pressed="false">อาทิตย์</button></div></div>
     <div class="field"><label for="f-owner">ผู้ดูแล</label><input id="f-owner" type="text" autocomplete="off"></div>
     <div id="ferr" class="ferr" role="alert" hidden></div>
     <div class="panel-actions">
@@ -428,18 +445,18 @@ var loading=true;       // first load in progress
 var loadError="";       // why the list could not be read
 var session=true;       // editing is open to everyone (no login)
 var busy=false;
-var state={q:"",hok:"all",sort:"sheet",view:"cards",page:"search",unit:"all",psort:"sheet",plimit:100};
+var state={q:"",hok:"all",day:"all",sort:"sheet",view:"cards",page:"search",unit:"all",psort:"sheet",plimit:100};
 var products=[],ploading=false,ploaded=false,perror="",loginAsk=false;
 try{var sv=localStorage.getItem("sr-view");if(sv==="cards"||sv==="table")state.view=sv}catch(e){}
 
 /* ---------- mapping between table columns and app fields ---------- */
-function fromRow(r){return{id:r.id,order:r.sort_order||0,th:r.name_th||"",en:r.name_en||"",phone:r.phone||"",code:r.code||"",hours:r.hours||"",zone:r.zone||"",hok:!!r.has_hokkaido,tag21:r.tag_2100||"",tag:r.tag_branch||"",owner:r.owner||"",updatedAt:r.updated_at||""}}
-function toRow(o){return{sort_order:o.order,name_th:o.th,name_en:o.en,phone:o.phone,code:o.code,hours:o.hours,zone:o.zone,has_hokkaido:o.hok,tag_2100:o.tag21,tag_branch:o.tag,owner:o.owner}}
+function fromRow(r){return{id:r.id,order:r.sort_order||0,th:r.name_th||"",en:r.name_en||"",phone:r.phone||"",code:r.code||"",hours:r.hours||"",zone:r.zone||"",hok:!!r.has_hokkaido,days:r.delivery_days||"",tag21:r.tag_2100||"",tag:r.tag_branch||"",owner:r.owner||"",updatedAt:r.updated_at||""}}
+function toRow(o){return{sort_order:o.order,name_th:o.th,name_en:o.en,phone:o.phone,code:o.code,hours:o.hours,zone:o.zone,has_hokkaido:o.hok,delivery_days:o.days||"",tag_2100:o.tag21,tag_branch:o.tag,owner:o.owner}}
 function explain(err,tbl){
   tbl=tbl||"branches";
   var c=err&&err.code,m=(err&&err.message)||"";
   if(c==="PGRST205"||c==="42P01")return"ยังไม่มีตาราง "+tbl+" ใน Supabase ให้รันไฟล์ "+(tbl==="products"?"schema_products.sql และ seed_products.sql":tbl==="restaurants"?"schema_restaurants.sql และ seed_restaurants.sql":"schema.sql และ seed.sql")+" ใน SQL Editor ก่อน";
-  if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ "+(tbl==="restaurants"?"schema_restaurants_tag.sql":"schema_bellinee.sql และ schema_oem.sql")+" ใน SQL Editor ก่อน";
+  if(c==="PGRST204"||c==="42703")return"ฐานข้อมูลยังไม่มีคอลัมน์ใหม่ ให้รันไฟล์ "+(tbl==="restaurants"?"schema_restaurants_tag.sql":tbl==="branches"?"schema_delivery.sql":"schema_bellinee.sql และ schema_oem.sql")+" ใน SQL Editor ก่อน";
   if(c==="42501")return"ไม่มีสิทธิ์แก้ไข ให้รันไฟล์ open_edit.sql ใน SQL Editor";
   if(/fetch|network|Failed/i.test(m))return"เชื่อมต่อ Supabase ไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่";
   return (m||"เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ")+(c?" ("+c+")":"");
@@ -463,12 +480,19 @@ function fmtDate(iso){
   var d=new Date(iso);if(isNaN(d))return"";
   return d.toLocaleString("th-TH",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
 }
+var DAYS=[[1,"จันทร์","จ."],[2,"อังคาร","อ."],[3,"พุธ","พ."],[4,"พฤหัสบดี","พฤ."],[5,"ศุกร์","ศ."],[6,"เสาร์","ส."],[7,"อาทิตย์","อา."]];
+function daysArr(s){var o=[];String(s||"").split(",").forEach(function(x){var n=parseInt(x,10);if(n>=1&&n<=7&&o.indexOf(n)<0)o.push(n)});return o.sort(function(a,b){return a-b})}
+function daysStr(a){return daysArr(a.join(",")).join(",")}
+function daysNames(s,short){var a=daysArr(s);return a.length?a.map(function(n){return DAYS[n-1][short?2:1]}).join(" "):"-"}
+function dayPills(s){var a=daysArr(s);if(!a.length)return'<span style="color:var(--muted)">-</span>';
+  return'<span class="dayline">'+DAYS.map(function(d){return'<span class="dpill'+(a.indexOf(d[0])>-1?" on":"")+'">'+d[2]+'</span>'}).join("")+'</span>'}
 function filtered(){
   var terms=norm(state.q).split(" ").filter(Boolean);
   var list=rows.filter(function(b){
     if(state.page==="search"){
       if(state.hok==="yes"&&!b.hok)return false;
       if(state.hok==="no"&&b.hok)return false;
+      if(state.day!=="all"&&daysArr(b.days).indexOf(state.day)<0)return false;
     }
     var h=b._h||(b._h=hay(b));
     return terms.every(function(t){return h.indexOf(t)>-1});
@@ -501,17 +525,19 @@ function card(b,t){
     row("เวลา",val(b.hours,[],"เวลาเปิด-ปิด"))+
     row("โซน",val(b.zone,[],"โซน"))+
     row("แท็ก",val(b.tag,[],"แท็ก"))+
+    row("ส่งรถ",dayPills(b.days))+
     row("ผู้ดูแล",esc(b.owner||"-"))+
     '</dl><div class="cardfoot">'+allBtn(allText(b))+'<button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></div></article>';
 }
 function table(list,t){
-  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>แท็ก</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
+  var h='<div class="tablewrap"><table><thead><tr><th>ชื่อสาขา</th><th>รหัส</th><th>เบอร์โทร</th><th>เวลาเปิด-ปิด</th><th>โซน</th><th>Hokkaido</th><th>รอบส่งรถ</th><th>แท็ก</th><th>ผู้ดูแล</th><th></th></tr></thead><tbody>';
   list.forEach(function(b){
     h+='<tr><td><b>'+hl(b.th,t)+'</b><div class="eng">'+hl(b.en,t)+'</div></td>'+
       '<td class="mono">'+hl(b.code,t)+'</td>'+
       '<td class="nowrap">'+(b.phone?'<div class="val"><a class="tel" href="tel:'+esc(b.phone.replace(/[^0-9+]/g,""))+'">'+esc(b.phone)+'</a>'+copyBtn(b.phone,"เบอร์โทร")+'</div>':"-")+'</td>'+
       '<td>'+val(b.hours,[],"เวลาเปิด-ปิด")+'</td><td>'+val(b.zone,[],"โซน")+'</td>'+
       '<td><span class="pill '+(b.hok?"yes":"no")+'" style="margin:0">'+(b.hok?"มี":"ไม่มี")+'</span></td>'+
+      '<td>'+dayPills(b.days)+'</td>'+
       '<td>'+esc(b.tag||"-")+'</td><td class="nowrap">'+esc(b.owner||"-")+'</td><td class="nowrap">'+allBtn(allText(b))+' <button class="btn small" type="button" data-edit="'+esc(b.id)+'">แก้ไข</button></td></tr>';
   });
   return h+'</tbody></table></div>';
@@ -546,7 +572,7 @@ function render(){
   $("t-bellinee").setAttribute("aria-current",state.page==="bellinee"?"page":"false");
   $("t-oem").setAttribute("aria-current",state.page==="oem"?"page":"false");
   $("t-sanghiran").setAttribute("aria-current",state.page==="sanghiran"?"page":"false");
-  $("controls").hidden=state.page!=="search";
+  $("controls").hidden=state.page!=="search";$("dayrow").hidden=state.page!=="search";
   $("pcontrols").hidden=!isProd;
   $("rcontrols").hidden=state.page!=="restaurants";
   $("t-rest").setAttribute("aria-current",state.page==="restaurants"?"page":"false");
@@ -569,10 +595,11 @@ function render(){
   var r=filtered(),list=r.list;
   if(isEdit){renderEdit(r);return}
   $("count").textContent="";
-  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></div>';
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rows.length+' สาขา</div><span class="barbtns"><button id="bsync" class="btn" type="button"'+(bsync&&bsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="add" class="btn primary" type="button">+ เพิ่มสาขา</button></span></div>'+bsyncPanel();
   $("v-cards").setAttribute("aria-pressed",state.view==="cards");
   $("v-table").setAttribute("aria-pressed",state.view==="table");
-  document.querySelectorAll(".chip").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.hok===state.hok)});
+  document.querySelectorAll(".chip[data-hok]").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.hok===state.hok)});
+  document.querySelectorAll(".chip[data-day]").forEach(function(c){c.setAttribute("aria-pressed",c.dataset.day===String(state.day))});
   if(!list.length){
     $("out").innerHTML=bar+'<div class="empty"><b>ไม่พบสาขาที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง หรือค้นด้วยรหัสสาขา เช่น 181</div>';
     return;
@@ -873,7 +900,7 @@ async function removeR(){
 
 /* ---------- sync from Google Sheet (Bellinee, OEM, Sanghiran) ---------- */
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
-var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237"};
+var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360"};
 var syncState=null;
 /* write-through: web edits -> Google Sheet via Apps Script web app (optional; set SHEET_WEBAPP_URL in config.js) */
 async function sheetPush(payload){
@@ -1008,6 +1035,114 @@ function syncPanel(){
   return h;
 }
 
+
+/* ---------- branches: sync with Google Sheet tab "สาขา" ---------- */
+var bsync=null;
+function branchRow(b){
+  var a=daysArr(b.days),any=a.length>0,row={code:b.code,nameTh:b.th,name:b.en,phone:b.phone,hours:b.hours,zone:b.zone,hok:!!b.hok,tag:b.tag,owner:b.owner};
+  for(var i=1;i<=7;i++)row["d"+i]=a.indexOf(i)>-1?1:(any?0:"");
+  return row;
+}
+function bSheetRows(csv){
+  var rows=parseCSV(csv).filter(function(r){return r.some(function(x){return x.trim()})}),out=[];
+  rows.forEach(function(r){
+    var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
+    var o={phone:t(0),th:t(1),en:t(2),hours:t(3),zone:t(4),tag:t(6),code:t(7),owner:t(8)};
+    var hk=t(5);if(hk==="/")o.hok=true;else if(hk==="-")o.hok=false;
+    var flags=[];var any=false;
+    for(var i=0;i<7;i++){var v=t(11+i);if(v!=="")any=true;if(v==="1")flags.push(i+1)}
+    if(any)o.days=flags.join(",");
+    out.push(o);
+  });
+  return out;
+}
+var BSYNC_FIELDS=[["phone","เบอร์โทร"],["th","ชื่อไทย"],["en","ชื่ออังกฤษ"],["hours","เวลา"],["zone","โซน"],["tag","แท็ก"],["hok","Hokkaido"],["days","รอบส่งรถ"],["owner","ผู้ดูแล"]];
+function bNormText(v){return String(v==null?"":v).replace(/\s+/g," ").trim()}
+function bShow(k,v){if(k==="hok")return v?"มี":"ไม่มี";if(k==="days")return daysNames(v,false);return v===""||v==null?"ว่าง":String(v)}
+function bBuildPlan(srows){
+  var map={},seen={},add=[],upd=[],same=0,dup=0,nocode=0;
+  rows.forEach(function(b){if(b.code&&!map[b.code])map[b.code]=b});
+  srows.forEach(function(s){
+    if(!s.code){nocode++;return}
+    if(seen[s.code]){dup++;return}
+    seen[s.code]=1;
+    var ex=map[s.code];
+    if(!ex){add.push(s);return}
+    var ch=[];
+    BSYNC_FIELDS.forEach(function(f){
+      var k=f[0],nv=s[k];
+      if(nv===undefined||nv==="")return;
+      var ov=ex[k],differ;
+      if(k==="hok")differ=!!ov!==!!nv;
+      else if(k==="days")differ=daysStr(daysArr(ov))!==daysStr(daysArr(nv));
+      else differ=bNormText(ov)!==bNormText(nv);
+      if(differ)ch.push({k:k,label:f[1],from:ov,to:nv});
+    });
+    if(ch.length)upd.push({id:ex.id,code:s.code,label:ex.th,ch:ch});else same++;
+  });
+  var missing=rows.filter(function(b){return b.code&&!seen[b.code]});
+  return{add:add,upd:upd,same:same,missing:missing,dup:dup,nocode:nocode,total:srows.length};
+}
+async function bsyncStart(){
+  if(bsync&&bsync.busy)return;
+  bsync={busy:true,msg:"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
+  try{
+    var r=await fetch("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID.branches,{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status+" (ชีตอาจไม่ได้เปิดให้ดูด้วยลิงก์)");
+    var srows=bSheetRows(await r.text());
+    if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
+    bsync={plan:bBuildPlan(srows)};
+  }catch(e){bsync={error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)+(location.protocol==="file:"?" — คุณกำลังเปิดไฟล์จากในเครื่อง (file://) Google ไม่อนุญาตให้ดึงชีตแบบนี้ ให้เปิดผ่านเว็บที่ deploy แล้ว (https://...github.io/...) แล้วกดอัปเดตใหม่":" — ตรวจอินเทอร์เน็ต หรือปิดตัวบล็อกโฆษณา/VPN ที่อาจบล็อก docs.google.com")}}
+  render();
+}
+var B_COL={phone:"phone",th:"name_th",en:"name_en",hours:"hours",zone:"zone",tag:"tag_branch",hok:"has_hokkaido",days:"delivery_days",owner:"owner"};
+async function bsyncApply(){
+  var st=bsync;if(!st||!st.plan||st.busy)return;
+  var plan=st.plan;
+  bsync={busy:true,msg:"กำลังอัปเดตข้อมูล…"};render();
+  var failed=0,added=0,updated=0,deleted=0,errMsg="";
+  try{
+    if(plan.add.length){
+      var order=rows.reduce(function(m,x){return Math.max(m,x.order||0)},0);
+      var recs=plan.add.map(function(s,i){
+        return{sort_order:order+i+1,name_th:s.th||"",name_en:s.en||"",phone:s.phone||"",code:s.code,hours:s.hours||"",zone:s.zone||"",has_hokkaido:!!s.hok,tag_2100:"",tag_branch:s.tag||"",owner:s.owner||"",delivery_days:s.days||""};
+      });
+      var ri=await sb.from("branches").insert(recs).select();
+      if(ri.error){errMsg=explain(ri.error);failed+=recs.length}else added=(ri.data||[]).length;
+    }
+    for(var i=0;i<plan.upd.length;i+=10){
+      var res=await Promise.all(plan.upd.slice(i,i+10).map(function(u){
+        var patch={};u.ch.forEach(function(c){patch[B_COL[c.k]]=c.k==="days"?daysStr(daysArr(c.to)):c.to});
+        return sb.from("branches").update(patch).eq("id",u.id).select();
+      }));
+      res.forEach(function(x){if(x.error){failed++;errMsg=errMsg||explain(x.error)}else if(!x.data||!x.data.length){failed++;errMsg=errMsg||"ไม่มีสิทธิ์แก้ไข (รัน open_edit.sql)"}else updated++});
+    }
+    for(var j=0;j<plan.missing.length;j+=50){
+      var ids=plan.missing.slice(j,j+50).map(function(p){return p.id});
+      var rd=await sb.from("branches").delete().in("id",ids).select();
+      if(rd.error){failed+=ids.length;errMsg=errMsg||explain(rd.error)}
+      else{deleted+=(rd.data||[]).length;if((rd.data||[]).length<ids.length){failed+=ids.length-(rd.data||[]).length;errMsg=errMsg||"ลบบางรายการไม่ได้ (ไม่มีสิทธิ์ลบ — รัน open_edit.sql)"}}
+    }
+  }catch(e){failed++;errMsg=explain(e)}
+  await load(true);
+  bsync={done:true,added:added,updated:updated,deleted:deleted,failed:failed,errMsg:errMsg};
+  render();
+}
+function bsyncPanel(){
+  var s=bsync;if(!s)return"";
+  if(s.busy)return'<div class="syncbox" role="status"><b>'+esc(s.msg)+'</b></div>';
+  if(s.error)return'<div class="syncbox err" role="alert"><b>'+esc(s.error)+'</b><div class="srow"><button id="bsync" class="btn" type="button">ลองใหม่</button><button id="bsync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' · ลบ '+(s.deleted||0)+' สาขา'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="bsync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  var p=s.plan,li=function(a,f){return a.slice(0,8).map(f).join("")+(a.length>8?'<li>…และอีก '+(a.length-8)+' รายการ</li>':"")};
+  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · ไม่มีในชีต (จะลบ) '+p.missing.length:'')+(p.nocode?' · ข้ามแถวที่ไม่มีรหัสสาขา '+p.nocode:'')+(p.dup?' · รหัสซ้ำในชีต '+p.dup+' (ใช้แถวแรก)':'')+'</div>';
+  if(p.add.length)h+='<div style="margin-top:8px">จะเพิ่ม:</div><ul>'+li(p.add,function(a){return'<li>'+esc(a.code)+' '+esc(a.th)+'</li>'})+'</ul>';
+  if(p.upd.length)h+='<div style="margin-top:8px">จะแก้ไข:</div><ul>'+li(p.upd,function(u){return'<li>'+esc(u.code)+' '+esc(u.label)+' — '+u.ch.map(function(c){return esc(c.label)+': '+esc(bShow(c.k,c.from))+' → '+esc(bShow(c.k,c.to))}).join(' | ')+'</li>'})+'</ul>';
+  if(p.missing.length)h+='<div style="margin-top:8px;color:var(--danger)"><b>จะลบ (ไม่มีในชีตแล้ว) — ลบแล้วกู้คืนไม่ได้:</b></div><ul>'+li(p.missing,function(m){return'<li>'+esc(m.code)+' '+esc(m.th)+'</li>'})+'</ul>';
+  var none=!p.add.length&&!p.upd.length&&!p.missing.length;
+  h+='<div class="srow">'+(none?'<span>ข้อมูลตรงกับชีตแล้ว ไม่ต้องอัปเดต</span>':'<button id="bsync-ok" class="btn primary" type="button">ยืนยันอัปเดต</button>')+'<button id="bsync-cancel" class="btn" type="button">'+(none?'ปิด':'ยกเลิก')+'</button></div></div>';
+  return h;
+}
+
 /* ---------- toast + copy ---------- */
 var tt;
 function toast(msg,ms){
@@ -1050,10 +1185,14 @@ function openSheet(id){
   $("sheet-title").textContent=b?"แก้ไขสาขา":"เพิ่มสาขาใหม่";
   F.forEach(function(k){$("f-"+k).value=b?(b[k]||""):"";$("f-"+k).removeAttribute("aria-invalid")});
   $("f-hok").checked=b?!!b.hok:false;
+  setFDays(b?daysArr(b.days):[]);
   $("del").hidden=!b;resetDel();showErr("");
   $("save").disabled=false;busy=false;
   $("sheet").hidden=false;
 }
+var fDays=[];
+function setFDays(a){fDays=a.slice();document.querySelectorAll("#f-days [data-fday]").forEach(function(c){c.setAttribute("aria-pressed",fDays.indexOf(Number(c.dataset.fday))>-1?"true":"false")})}
+document.querySelectorAll("#f-days [data-fday]").forEach(function(c){c.addEventListener("click",function(){var n=Number(c.dataset.fday),i=fDays.indexOf(n);if(i>-1)fDays.splice(i,1);else fDays.push(n);setFDays(fDays)})});
 function closeSheet(){$("sheet").hidden=true;editingId=null;resetDel()}
 function resetDel(){clearTimeout(armTimer);var d=$("del");d.textContent="ลบสาขา";d.classList.remove("arm")}
 async function save(){
@@ -1061,7 +1200,7 @@ async function save(){
   if(!sb||!session){showErr("ต้องเข้าสู่ระบบก่อนจึงจะบันทึกได้");return}
   var obj={};
   F.forEach(function(k){obj[k]=$("f-"+k).value.trim()});
-  obj.hok=$("f-hok").checked;
+  obj.hok=$("f-hok").checked;obj.days=daysStr(fDays);
   if(!obj.th){$("f-th").setAttribute("aria-invalid","true");showErr("กรอกชื่อสาขา (ไทย)");$("f-th").focus();return}
   var dup=rows.filter(function(x){return x.id!==editingId&&obj.code&&x.code===obj.code});
   var cur=editingId?rows.filter(function(x){return x.id===editingId})[0]:null;
@@ -1079,6 +1218,7 @@ async function save(){
       rows.sort(function(a,b){return a.order-b.order});
       closeSheet();render();
       toast(dup.length?"บันทึกแล้ว (รหัสสาขา "+obj.code+" ซ้ำกับสาขาอื่น)":"บันทึกแล้ว");
+      sheetPush({action:"upsert",cat:"branches",oldCode:cur?cur.code:"",oldNameTh:cur?cur.th:"",oldName:cur?cur.en:"",row:branchRow(saved)}).then(function(res){pushToast(res,"บันทึกแล้ว")});
     }
   }catch(e){showErr(explain(e))}
   busy=false;$("save").disabled=false;
@@ -1095,7 +1235,8 @@ async function removeBranch(){
     var r=await sb.from("branches").delete().eq("id",editingId).select();
     if(r.error){showErr(explain(r.error))}
     else if(!r.data||!r.data.length){showErr("ลบไม่สำเร็จ ยังไม่ได้เปิดสิทธิ์แก้ไขในฐานข้อมูล ให้รันไฟล์ open_edit.sql ใน SQL Editor")}
-    else{rows=rows.filter(function(x){return x.id!==editingId});closeSheet();render();toast("ลบสาขาแล้ว")}
+    else{var gone=rows.filter(function(x){return x.id===editingId})[0];rows=rows.filter(function(x){return x.id!==editingId});closeSheet();render();toast("ลบสาขาแล้ว");
+      if(gone)sheetPush({action:"delete",cat:"branches",code:gone.code,nameTh:gone.th,name:gone.en}).then(function(res){pushToast(res,"ลบแล้ว")})}
   }catch(e){showErr(explain(e))}
   busy=false;d.disabled=false;
 }
@@ -1120,7 +1261,8 @@ async function doLogin(ev){
 $("q").addEventListener("input",function(e){state.q=e.target.value;state.plimit=100;render()});
 $("clear").addEventListener("click",function(){state.q="";$("q").value="";render();$("q").focus()});
 $("sort").addEventListener("change",function(e){state.sort=e.target.value;render()});
-document.querySelectorAll(".chip").forEach(function(c){c.addEventListener("click",function(){state.hok=c.dataset.hok;render()})});
+document.querySelectorAll(".chip[data-hok]").forEach(function(c){c.addEventListener("click",function(){state.hok=c.dataset.hok;render()})});
+document.querySelectorAll(".chip[data-day]").forEach(function(c){c.addEventListener("click",function(){var d=c.dataset.day==="all"?"all":Number(c.dataset.day);state.day=(state.day===d&&d!=="all")?"all":d;render()})});
 function setView(v){state.view=v;try{localStorage.setItem("sr-view",v)}catch(e){}render()}
 $("v-cards").addEventListener("click",function(){setView("cards")});
 $("v-table").addEventListener("click",function(){setView("table")});
@@ -1134,6 +1276,9 @@ $("out").addEventListener("click",function(e){
   var re_=e.target.closest("[data-redit]");if(re_){openR(re_.dataset.redit);return}
   if(e.target.closest("#radd")){openR(null);return}
   if(e.target.closest("#rretry")){loadRest();return}
+  if(e.target.closest("#bsync")){bsyncStart();return}
+  if(e.target.closest("#bsync-ok")){bsyncApply();return}
+  if(e.target.closest("#bsync-cancel")){bsync=null;render();return}
   if(e.target.closest("#psync")){syncStart();return}
   if(e.target.closest("#psync-ok")){syncApply();return}
   if(e.target.closest("#psync-cancel")){syncState=null;render();return}
@@ -1188,7 +1333,7 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("themepa
 function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#sanghiran"?"sanghiran":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
   if(p!==state.page){state.q="";$("q").value=""}
-  syncState=null;
+  syncState=null;bsync=null;
   state.page=p;state.plimit=100;state.unit="all";if(ploaded)fillUnits();
   if(!$("sheet").hidden)closeSheet();
   if(!$("psheet").hidden)closeP();

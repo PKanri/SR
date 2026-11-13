@@ -946,7 +946,7 @@ function pushToast(res,what){
   if(!res)return;
   toast(res.ok?what+" และอัปเดต Google Sheet แล้ว":what+" (ในเว็บ) แต่ส่งไป Google Sheet ไม่สำเร็จ: "+res.msg,res.ok?2600:7000);
 }
-var PD_TAB="รายละเอียPD SR",pdMap=null,pdState=0,pdErr="";
+var PD_TAB="รายละเอียดPD SR",pdMap=null,pdState=0,pdErr="";
 function pdUrl(){return "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(PD_TAB)}
 async function loadPD(force){
   if(pdState===1||(pdState===2&&!force))return;

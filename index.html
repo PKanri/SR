@@ -1010,7 +1010,7 @@ function renderPD(){
   var fields=[["รหัสสินค้า",dd.code||code,"code"],["ชื่อสินค้า",dd.name,"name"]].concat(PDF.map(function(f){return [f[1],dd[f[0]],f[0]]}));
   var items=((phMap&&phMap[code])||[]).map(function(x){return{src:x.url,link:x.url,id:x.id}}).concat(photoUrls(d&&d.photo));
   var html='<p class="dsub">รหัส '+esc(code)+'</p>';
-  html+='<div class="dup-row"><button type="button" class="btn small" id="pdedit">แก้ไขรายละเอียด</button></div>';
+  html+='<div class="dup-row"><button type="button" class="btn small" id="pdedit">แก้ไขรายละเอียด</button>'+(d?'<button type="button" class="btn small" id="pddel"'+(pdSaving?' disabled':'')+' style="color:var(--danger)">ลบรายละเอียด</button>':'')+'</div>'+(pdSaveErr?'<p class="ferr">'+esc(pdSaveErr)+'</p>':'');
   if(d)html+='<dl class="dgrid">'+fields.map(function(f){return '<dt>'+f[0]+'</dt><dd><div class="dval"><span>'+(f[1]?esc(f[1]):'<span class="muted">-</span>')+'</span>'+(f[1]&&f[2]!=="code"&&f[2]!=="name"?'<button class="copy" type="button" data-dcopy="'+f[2]+'" aria-label="คัดลอก'+esc(f[0])+'">คัดลอก</button>':'')+'</div></dd>'}).join("")+'</dl>';
   else html+='<p class="dmsg">ยังไม่มีข้อมูลรายละเอียดของรหัสนี้ในแท็บ '+esc(PD_TAB)+(pdErr?' ('+esc(pdErr)+')':'')+'</p>';
   html+='<dl class="dgrid"><dt>Photo</dt><dd>'+(items.length?'<div class="dphotos">'+items.map(function(u){
@@ -1071,6 +1071,17 @@ async function savePD(){
     renderPD();
     Object.keys(keep).forEach(function(k){var e=$("pde-"+k);if(e)e.value=keep[k]});
   }
+}
+async function deletePD(){
+  if(pdSaving||!pdCur||!(pdMap&&pdMap[pdCur]))return;
+  var code=pdCur;
+  if(!confirm("ลบรายละเอียดของรหัส "+code+" ถาวร?\nระบบจะลบทั้งแถวในแท็บ "+PD_TAB+" ของ Google Sheet ด้วย (รูปที่เก็บใน Supabase ไม่ถูกลบ)"))return;
+  if(!CFG.SHEET_WEBAPP_URL){pdSaveErr="ยังไม่ได้ตั้งค่า SHEET_WEBAPP_URL ใน config.js";renderPD();return}
+  pdSaving=true;pdSaveErr="";renderPD();
+  var res=await sheetPush({cat:"secret",action:"pddelete",code:code});
+  pdSaving=false;
+  if(res&&res.ok){delete pdMap[code];toast("ลบรายละเอียดแล้ว และลบใน Google Sheet แล้ว",2600);renderPD()}
+  else{pdSaveErr="ลบใน Google Sheet ไม่สำเร็จ: "+((res&&res.msg)||"ไม่ได้ตั้งค่า");renderPD()}
 }
 async function deletePhoto(id){
   if(phBusy)return;
@@ -1545,6 +1556,7 @@ $("pform").addEventListener("submit",function(e){e.preventDefault();saveP()});
 $("pdel").addEventListener("click",removeP);
 $("dsheet").addEventListener("click",function(e){if(e.target.closest("[data-close]")){$("dsheet").hidden=true;pdCur=null;return}
   var dc=e.target.closest("[data-dcopy]");if(dc){var dm=pdMap&&pdMap[pdCur];var tx=dm?dm[dc.dataset.dcopy]:"";if(tx)doCopy(tx,"คัดลอกแล้ว");return}
+  if(e.target.closest("#pddel")){deletePD();return}
   if(e.target.closest("#pdedit")){pdEditing=true;pdSaveErr="";renderPD();return}
   if(e.target.closest("#pdcancel")){pdEditing=false;pdSaveErr="";renderPD();return}
   var d=e.target.closest("[data-phdel]");if(d)deletePhoto(d.dataset.phdel)});

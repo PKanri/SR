@@ -931,7 +931,7 @@ async function removeR(){
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
 var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360",secret:"by-name"};
 var SECRET_TAB="Product SR";
-function sheetUrl(cat){return cat==="secret"?"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(SECRET_TAB):"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat]}
+function sheetUrl(cat){return cat==="secret"?"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&headers=1&sheet="+encodeURIComponent(SECRET_TAB):"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat]}
 var syncState=null;
 /* write-through: web edits -> Google Sheet via Apps Script web app (optional; set SHEET_WEBAPP_URL in config.js) */
 async function sheetPush(payload){
@@ -948,7 +948,7 @@ function pushToast(res,what){
   toast(res.ok?what+" และอัปเดต Google Sheet แล้ว":what+" (ในเว็บ) แต่ส่งไป Google Sheet ไม่สำเร็จ: "+res.msg,res.ok?2600:7000);
 }
 var PD_TAB="รายละเอียดPD SR",pdMap=null,pdState=0,pdErr="";
-function pdUrl(){return "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(PD_TAB)}
+function pdUrl(){return "https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&headers=1&sheet="+encodeURIComponent(PD_TAB)}
 async function loadPD(force){
   if(pdState===1||((pdState===2||pdState===3)&&!force))return;
   pdState=1;

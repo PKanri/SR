@@ -1055,7 +1055,8 @@ async function uploadPhotos(files){
 async function savePD(){
   if(pdSaving||!pdCur)return;
   var code=pdCur,old=(pdMap&&pdMap[code])||{code:code,name:"",photo:""};
-  var n={code:code,name:old.name||""};
+  var sp=products.filter(function(x){return x.cat==="secret"&&x.code===code})[0];
+  var n={code:code,name:(sp&&(sp.nameTh||sp.name))||old.name||""};
   ["detail","main","allergy","exp","storage"].forEach(function(k){n[k]=$("pde-"+k).value.replace(/\r/g,"").trim()});
   if(!CFG.SHEET_WEBAPP_URL){pdSaveErr="ยังไม่ได้ตั้งค่า SHEET_WEBAPP_URL ใน config.js";renderPD();return}
   pdSaving=true;pdSaveErr="";

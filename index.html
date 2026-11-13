@@ -818,7 +818,7 @@ function rSheetRows(csv){
   rows.forEach(function(r,i){
     var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
     var a=t(6);
-    out.push({name:t(0),shop:t(1),phone:t(2),hours:t(4),details:t(5),area:R_AREA[a]||a,brand:rBrandOf(t(0)),idx:out.length+1});
+    out.push({name:t(0),shop:t(1),phone:t(2),hours:t(4),details:t(5),area:a,brand:rBrandOf(t(0)),idx:out.length+1});
   });
   return out;
 }

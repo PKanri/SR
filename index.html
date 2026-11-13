@@ -1011,7 +1011,7 @@ function renderPD(){
   var items=((phMap&&phMap[code])||[]).map(function(x){return{src:x.url,link:x.url,id:x.id}}).concat(photoUrls(d&&d.photo));
   var html='<p class="dsub">รหัส '+esc(code)+'</p>';
   html+='<div class="dup-row"><button type="button" class="btn small" id="pdedit">แก้ไขรายละเอียด</button>'+(d?'<button type="button" class="btn small" id="pddel"'+(pdSaving?' disabled':'')+' style="color:var(--danger)">ลบรายละเอียด</button>':'')+'</div>'+(pdSaveErr?'<p class="ferr">'+esc(pdSaveErr)+'</p>':'');
-  if(d)html+='<dl class="dgrid">'+fields.map(function(f){return '<dt>'+f[0]+'</dt><dd><div class="dval"><span>'+(f[1]?esc(f[1]):'<span class="muted">-</span>')+'</span>'+(f[1]&&f[2]!=="code"&&f[2]!=="name"?'<button class="copy" type="button" data-dcopy="'+f[2]+'" aria-label="คัดลอก'+esc(f[0])+'">คัดลอก</button>':'')+'</div></dd>'}).join("")+'</dl>';
+  if(d)html+='<dl class="dgrid">'+fields.map(function(f){return '<dt>'+f[0]+'</dt><dd><div class="dval"><span>'+(f[1]?esc(f[1]):'<span class="muted">-</span>')+'</span>'+(f[1]?'<button class="copy" type="button" data-dcopy="'+f[2]+'" aria-label="คัดลอก'+esc(f[0])+'">คัดลอก</button>':'')+'</div></dd>'}).join("")+'</dl>';
   else html+='<p class="dmsg">ยังไม่มีข้อมูลรายละเอียดของรหัสนี้ในแท็บ '+esc(PD_TAB)+(pdErr?' ('+esc(pdErr)+')':'')+'</p>';
   html+='<dl class="dgrid"><dt>Photo</dt><dd>'+(items.length?'<div class="dphotos">'+items.map(function(u){
     return '<div class="dph"><a href="'+esc(u.link)+'" target="_blank" rel="noopener"><img src="'+esc(u.src)+'" alt="รูป '+esc(code)+'" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML=\'<span class=muted>เปิดรูปไม่ได้</span>\'"></a>'+(u.id?'<button class="pdel" type="button" data-phdel="'+esc(u.id)+'">ลบรูป</button>':'')+'</div>'}).join("")+'</div>':'<span class="muted">ยังไม่มีรูป</span>')+'</dd></dl>';
@@ -1556,7 +1556,9 @@ $("psort").addEventListener("change",function(e){state.psort=e.target.value;stat
 $("pform").addEventListener("submit",function(e){e.preventDefault();saveP()});
 $("pdel").addEventListener("click",removeP);
 $("dsheet").addEventListener("click",function(e){if(e.target.closest("[data-close]")){$("dsheet").hidden=true;pdCur=null;return}
-  var dc=e.target.closest("[data-dcopy]");if(dc){var dm=pdMap&&pdMap[pdCur];var tx=dm?dm[dc.dataset.dcopy]:"";if(tx)doCopy(tx,"คัดลอกแล้ว");return}
+  var dc=e.target.closest("[data-dcopy]");if(dc){var dm=pdMap&&pdMap[pdCur];var tx=dm?dm[dc.dataset.dcopy]:"";
+    if(tx&&dc.dataset.dcopy==="detail"){var sp2=products.filter(function(x){return x.cat==="secret"&&x.code===pdCur})[0];var nm=(dm&&dm.name)||(sp2&&(sp2.nameTh||sp2.name))||"";if(nm)tx=nm+"\n"+tx}
+    if(tx)doCopy(tx,"คัดลอกแล้ว");return}
   if(e.target.closest("#pddel")){deletePD();return}
   if(e.target.closest("#pdedit")){pdEditing=true;pdSaveErr="";renderPD();return}
   if(e.target.closest("#pdcancel")){pdEditing=false;pdSaveErr="";renderPD();return}

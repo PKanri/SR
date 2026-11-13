@@ -808,6 +808,104 @@ async function removeP(){
 }
 
 
+
+/* ---------- restaurants: sync from Google Sheet tab "สาขาPonn/malakor" ---------- */
+var RSHEET_GID=351479367,rsync=null;
+var R_AREA={Yai:"พี่ใหญ่",Fai:"พี่ฝ้าย",Tee:"พี่ตี๋",Mas:"พี่มาศ"};
+function rBrandOf(n){n=String(n||"");return /^(ป้อน|ponn)/i.test(n)?"Ponn":/^(มะละกอ|malakor)/i.test(n)?"Malakor":""}
+function rSheetRows(csv){
+  var rows=parseCSV(csv).filter(function(r){return r.some(function(x){return x.trim()})}),out=[];
+  rows.forEach(function(r,i){
+    var t=function(k){return(r[k]||"").replace(/\s+/g," ").trim()};
+    var a=t(6);
+    out.push({name:t(0),shop:t(1),phone:t(2),hours:t(4),details:t(5),area:R_AREA[a]||a,brand:rBrandOf(t(0)),idx:out.length+1});
+  });
+  return out;
+}
+var RSYNC_FIELDS=[["brand","แบรนด์"],["name","ชื่อสาขา"],["phone","เบอร์โทร"],["hours","เวลา"],["details","รายละเอียด"],["area","แอเรีย"]];
+function rBuildPlan(srows){
+  var map={},seen={},add=[],upd=[],same=0,dup=0,noid=0;
+  rest.forEach(function(o){if(o.shop&&!map[o.shop])map[o.shop]=o});
+  srows.forEach(function(s){
+    if(!s.shop){noid++;return}
+    if(seen[s.shop]){dup++;return}
+    seen[s.shop]=1;
+    var ex=map[s.shop];
+    if(!ex){add.push(s);return}
+    var ch=[];
+    RSYNC_FIELDS.forEach(function(f){
+      var k=f[0],nv=s[k];if(nv===undefined||nv==="")return;
+      if(bNormText(ex[k])!==bNormText(nv))ch.push({k:k,label:f[1],from:ex[k],to:nv});
+    });
+    if(ch.length)upd.push({id:ex.id,shop:s.shop,label:ex.name,ch:ch,idx:s.idx});
+    else{same++;if((ex.order||0)!==s.idx)s.reorder=ex.id}
+  });
+  var missing=rest.filter(function(o){return !o.shop||!seen[o.shop]||map[o.shop]!==o});
+  var reorder=srows.filter(function(s){return s.reorder});
+  return{add:add,upd:upd,same:same,missing:missing,dup:dup,noid:noid,total:srows.length,reorder:reorder,srows:srows};
+}
+async function rsyncStart(){
+  if(rsync&&rsync.busy)return;
+  rsync={busy:true,msg:"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
+  try{
+    var r=await fetch("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+RSHEET_GID,{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status+" (ชีตอาจไม่ได้เปิดให้ดูด้วยลิงก์)");
+    var srows=rSheetRows(await r.text());
+    if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
+    rsync={plan:rBuildPlan(srows)};
+  }catch(e){rsync={error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)+(location.protocol==="file:"?" — เปิดผ่านเว็บ https:// แทนไฟล์ในเครื่อง":" — ตรวจอินเทอร์เน็ต หรือปิดตัวบล็อกโฆษณา/VPN ที่อาจบล็อก docs.google.com")}}
+  render();
+}
+async function rsyncApply(){
+  var st=rsync;if(!st||!st.plan||st.busy)return;
+  var plan=st.plan;
+  rsync={busy:true,msg:"กำลังอัปเดตข้อมูล…"};render();
+  var failed=0,added=0,updated=0,deleted=0,errMsg="";
+  var RC={brand:"brand",name:"name",phone:"phone",hours:"hours",details:"details",area:"area"};
+  try{
+    // ลบก่อน (ไม่มีในชีต) เพื่อไม่ให้รหัสร้านชนกัน
+    for(var j=0;j<plan.missing.length;j+=50){
+      var ids=plan.missing.slice(j,j+50).map(function(p){return p.id});
+      var rd=await sb.from("restaurants").delete().in("id",ids).select();
+      if(rd.error){failed+=ids.length;errMsg=errMsg||explain(rd.error,"restaurants")}
+      else{deleted+=(rd.data||[]).length;if((rd.data||[]).length<ids.length){failed+=ids.length-(rd.data||[]).length;errMsg=errMsg||"ลบบางรายการไม่ได้ (ไม่มีสิทธิ์ลบ)"}}
+    }
+    if(plan.add.length){
+      var recs=plan.add.map(function(s){return{sort_order:s.idx,brand:s.brand||"",name:s.name||"",shop_id:s.shop,phone:s.phone||"",hours:s.hours||"",details:s.details||"",area:s.area||"",tag:""}});
+      var ri=await sb.from("restaurants").insert(recs).select();
+      if(ri.error){errMsg=errMsg||explain(ri.error,"restaurants");failed+=recs.length}else added=(ri.data||[]).length;
+    }
+    for(var i=0;i<plan.upd.length;i+=10){
+      var res=await Promise.all(plan.upd.slice(i,i+10).map(function(u){
+        var patch={sort_order:u.idx};u.ch.forEach(function(c){patch[RC[c.k]]=c.to});
+        return sb.from("restaurants").update(patch).eq("id",u.id).select();
+      }));
+      res.forEach(function(x){if(x.error){failed++;errMsg=errMsg||explain(x.error,"restaurants")}else if(!x.data||!x.data.length){failed++;errMsg=errMsg||"ไม่มีสิทธิ์แก้ไข"}else updated++});
+    }
+    for(var k=0;k<plan.reorder.length;k+=10){
+      await Promise.all(plan.reorder.slice(k,k+10).map(function(s){return sb.from("restaurants").update({sort_order:s.idx}).eq("id",s.reorder)}));
+    }
+  }catch(e){failed++;errMsg=explain(e,"restaurants")}
+  await loadRest(true);
+  rsync={done:true,added:added,updated:updated,deleted:deleted,failed:failed,errMsg:errMsg};
+  render();
+}
+function rsyncPanel(){
+  var s=rsync;if(!s)return"";
+  if(s.busy)return'<div class="syncbox" role="status"><b>'+esc(s.msg)+'</b></div>';
+  if(s.error)return'<div class="syncbox err" role="alert"><b>'+esc(s.error)+'</b><div class="srow"><button id="rsync" class="btn" type="button">ลองใหม่</button><button id="rsync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  if(s.done)return'<div class="syncbox '+(s.failed?"err":"ok")+'" role="status"><b>'+(s.failed?"อัปเดตเสร็จ แต่มี "+s.failed+" รายการไม่สำเร็จ":"อัปเดตเสร็จแล้ว")+'</b><div>เพิ่มใหม่ '+s.added+' · แก้ไข '+s.updated+' · ลบ '+(s.deleted||0)+' สาขา'+(s.errMsg?'<br>'+esc(s.errMsg):'')+'</div><div class="srow"><button id="rsync-cancel" class="btn" type="button">ปิด</button></div></div>';
+  var p=s.plan,li=function(a,f){return a.slice(0,8).map(f).join("")+(a.length>8?'<li>…และอีก '+(a.length-8)+' รายการ</li>':"")};
+  var h='<div class="syncbox"><b>อ่านจากชีตได้ '+p.total+' แถว</b><div>เพิ่มใหม่ '+p.add.length+' · มีการเปลี่ยนแปลง '+p.upd.length+' · เหมือนเดิม '+p.same+(p.missing.length?' · ไม่มีในชีต (จะลบ) '+p.missing.length:'')+(p.dup?' · ID ซ้ำในชีต (ข้าม) '+p.dup:'')+(p.noid?' · ไม่มี ID (ข้าม) '+p.noid:'')+'</div>';
+  if(p.add.length)h+='<div style="margin-top:8px">จะเพิ่ม:</div><ul>'+li(p.add,function(a){return'<li>#'+esc(a.shop)+' '+esc(a.name)+'</li>'})+'</ul>';
+  if(p.upd.length)h+='<div style="margin-top:8px">จะแก้ไข:</div><ul>'+li(p.upd,function(u){return'<li>#'+esc(u.shop)+' '+esc(u.label)+' — '+u.ch.map(function(c){return esc(c.label)+': '+esc(c.from===""||c.from==null?"ว่าง":c.from)+' → '+esc(c.to)}).join(' | ')+'</li>'})+'</ul>';
+  if(p.missing.length)h+='<div style="margin-top:8px;color:var(--danger)"><b>จะลบ (ไม่มีในชีตแล้ว) — ลบแล้วกู้คืนไม่ได้:</b></div><ul>'+li(p.missing,function(m){return'<li>'+(m.shop?'#'+esc(m.shop)+' ':'')+esc(m.name)+'</li>'})+'</ul>';
+  var none=!p.add.length&&!p.upd.length&&!p.missing.length&&!p.reorder.length;
+  var only=!p.add.length&&!p.upd.length&&!p.missing.length&&p.reorder.length;
+  h+='<div class="srow">'+(none?'<span>ข้อมูลตรงกับชีตแล้ว ไม่ต้องอัปเดต</span>':'<button id="rsync-ok" class="btn primary" type="button">'+(only?'ยืนยัน (จัดลำดับตามชีต)':'ยืนยันอัปเดต')+'</button>')+'<button id="rsync-cancel" class="btn" type="button">'+(none?'ปิด':'ยกเลิก')+'</button></div></div>';
+  return h;
+}
+
 /* ---------- restaurants page ---------- */
 var rest=[],rloaded=false,rloading=false,rerror="",rbrand="all",rarea="all",rsort="sheet",rEditing=null,rArm=null,rBusy=false;
 function rFromRow(r){return{tag:r.tag||"",id:r.id,order:r.sort_order||0,brand:r.brand||"",name:r.name||"",shop:r.shop_id||"",phone:r.phone||"",hours:r.hours||"",details:r.details||"",area:r.area||"",updatedAt:r.updated_at||""}}
@@ -847,7 +945,7 @@ function renderRest(){
   if(rsort==="name")list=list.slice().sort(function(a,b){return a.name.localeCompare(b.name,"th")});
   else if(rsort==="code")list=list.slice().sort(function(a,b){return (parseInt(a.shop)||0)-(parseInt(b.shop)||0)});
   cpCtx="r";cpRL=list;
-  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><span class="barbtns"><button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></span></div>'+cpPanel(list.length);
+  var bar='<div class="editbar"><div class="count" aria-live="polite">แสดง '+list.length+' จาก '+rest.length+' สาขา</div><span class="barbtns"><button id="cpbtn" class="btn" type="button" aria-expanded="'+(cpOpen?"true":"false")+'">คัดลอกข้อมูลที่กรอง</button><button id="rsync" class="btn" type="button"'+(rsync&&rsync.busy?' disabled':'')+'>↻ อัปเดตจาก Google Sheet</button><button id="radd" class="btn primary" type="button">+ เพิ่มร้าน</button></span></div>'+cpPanel(list.length)+rsyncPanel();
   if(!list.length){out.innerHTML=bar+'<div class="empty"><b>ไม่พบร้านที่ตรงกับคำค้น</b>ลองพิมพ์ให้สั้นลง</div>';return}
   $("rsort").value=rsort;
   $("rv-cards").setAttribute("aria-pressed",state.view==="cards");
@@ -1537,6 +1635,9 @@ $("out").addEventListener("click",function(e){
   if(e.target.closest("#cpgo")){cpDo();return}
   if(e.target.closest("#cpall")){cpCols().forEach(function(c){cpSel()[c[0]]=1});cpSave();render();return}
   if(e.target.closest("#cpnone")){cpSels[cpCtx]={};cpSave();render();return}
+  if(e.target.closest("#rsync")){rsyncStart();return}
+  if(e.target.closest("#rsync-ok")){rsyncApply();return}
+  if(e.target.closest("#rsync-cancel")){rsync=null;render();return}
   if(e.target.closest("#bsync")){bsyncStart();return}
   if(e.target.closest("#bsync-ok")){bsyncApply();return}
   if(e.target.closest("#bsync-cancel")){bsync=null;render();return}
@@ -1605,7 +1706,7 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!$("themepa
 function pageFromHash(){return location.hash==="#products"?"products":location.hash==="#bellinee"?"bellinee":location.hash==="#oem"?"oem":location.hash==="#sanghiran"?"sanghiran":location.hash==="#restaurants"?"restaurants":"search"}
 function setPage(p){
   if(p!==state.page){state.q="";$("q").value=""}
-  syncState=null;bsync=null;
+  syncState=null;bsync=null;rsync=null;
   state.page=p;state.plimit=100;state.unit="all";if(ploaded)fillUnits();
   if(!$("sheet").hidden)closeSheet();
   if(!$("psheet").hidden)closeP();

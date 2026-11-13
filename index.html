@@ -844,15 +844,23 @@ function rBuildPlan(srows){
   var reorder=srows.filter(function(s){return s.reorder});
   return{add:add,upd:upd,same:same,missing:missing,dup:dup,noid:noid,total:srows.length,reorder:reorder,srows:srows};
 }
-async function rsyncStart(){
+var rAuto=false;
+async function rsyncStart(auto){
+  auto=auto===true;
   if(rsync&&rsync.busy)return;
-  rsync={busy:true,msg:"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
+  rsync={busy:true,msg:auto?"กำลังซิงก์ข้อมูลกับ Google Sheet…":"กำลังอ่านข้อมูลจาก Google Sheet…"};render();
   try{
     var r=await fetch("https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+RSHEET_GID,{cache:"no-store"});
     if(!r.ok)throw new Error("HTTP "+r.status+" (ชีตอาจไม่ได้เปิดให้ดูด้วยลิงก์)");
     var srows=rSheetRows(await r.text());
     if(!srows.length)throw new Error("ไม่พบข้อมูลในชีต");
-    rsync={plan:rBuildPlan(srows)};
+    var pl=rBuildPlan(srows);
+    if(auto){
+      var nothing=!pl.add.length&&!pl.upd.length&&!pl.missing.length;
+      if(nothing&&!pl.reorder.length){rsync=null;render();return}
+      if(pl.missing.length<=3){rsync={plan:pl,auto:true};await rsyncApply();return}
+    }
+    rsync={plan:pl};
   }catch(e){rsync={error:"อ่านข้อมูลจาก Google Sheet ไม่สำเร็จ: "+((e&&e.message)||e)+(location.protocol==="file:"?" — เปิดผ่านเว็บ https:// แทนไฟล์ในเครื่อง":" — ตรวจอินเทอร์เน็ต หรือปิดตัวบล็อกโฆษณา/VPN ที่อาจบล็อก docs.google.com")}}
   render();
 }
@@ -888,6 +896,7 @@ async function rsyncApply(){
   }catch(e){failed++;errMsg=explain(e,"restaurants")}
   await loadRest(true);
   rsync={done:true,added:added,updated:updated,deleted:deleted,failed:failed,errMsg:errMsg};
+  if(st.auto&&!failed){toast("ซิงก์จาก Google Sheet แล้ว: เพิ่ม "+added+" · แก้ไข "+updated+" · ลบ "+deleted,3500);rsync=null}
   render();
 }
 function rsyncPanel(){
@@ -973,6 +982,7 @@ async function loadRest(silent){
     else{rest=(r.data||[]).map(rFromRow);rerror="";rloaded=true;fillRFilters()}
   }catch(e){rerror=explain(e,"restaurants")}
   rloading=false;if(state.page==="restaurants")render();
+  if(rloaded&&!rAuto&&state.page==="restaurants"){rAuto=true;rsyncStart(true)}
 }
 function showRerr(m){var e=$("rferr");e.textContent=m||"";e.hidden=!m;if(m){toast("ไม่สำเร็จ: "+m,5000);e.scrollIntoView({block:"nearest"})}}
 var RF=["name","brand","shop","phone","hours","details","tag","area"];

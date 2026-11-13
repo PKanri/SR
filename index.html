@@ -1016,6 +1016,7 @@ async function saveR(){
       if(i>-1)rest[i]=s;else rest.push(s);
       rest.sort(function(a,b){return a.order-b.order});
       fillRFilters();closeR();render();toast("บันทึกแล้ว");
+      sheetPush({action:"upsert",cat:"restaurants",oldCode:cur?cur.shop:"",oldNameTh:"",oldName:cur?cur.name:"",row:{code:o.shop,name:o.name,phone:o.phone,hours:o.hours,details:o.details,area:o.area}}).then(function(res){pushToast(res,"บันทึกแล้ว")});
     }
   }catch(e){showRerr(explain(e,"restaurants"))}
   rBusy=false;$("rsave").disabled=false;
@@ -1029,7 +1030,8 @@ async function removeR(){
     var r=await sb.from("restaurants").delete().eq("id",rEditing).select();
     if(r.error){showRerr(explain(r.error,"restaurants"))}
     else if(!r.data||!r.data.length){showRerr("ลบไม่สำเร็จ ยังไม่ได้เปิดสิทธิ์แก้ไขในฐานข้อมูล")}
-    else{rest=rest.filter(function(x){return x.id!==rEditing});fillRFilters();closeR();render();toast("ลบแล้ว")}
+    else{var goneR=rest.filter(function(x){return x.id===rEditing})[0];rest=rest.filter(function(x){return x.id!==rEditing});fillRFilters();closeR();render();toast("ลบแล้ว");
+      if(goneR)sheetPush({action:"delete",cat:"restaurants",code:goneR.shop,name:goneR.name}).then(function(res){pushToast(res,"ลบแล้ว")})}
   }catch(e){showRerr(explain(e,"restaurants"))}
   rBusy=false;d.disabled=false;
 }
@@ -1037,7 +1039,7 @@ async function removeR(){
 
 /* ---------- sync from Google Sheet (Bellinee, OEM, Sanghiran) ---------- */
 var SHEET_ID="1D__uX_fj7FhCfj8dCbDNgQXxTdWCloNXi7l4it5uXco";
-var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360",secret:"by-name"};
+var SHEET_GID={bellinee:"670638780",oem:"1114306811",sanghiran:"125270237",branches:"539034360",secret:"by-name",restaurants:"351479367"};
 var SECRET_TAB="Product SR";
 function sheetUrl(cat){return cat==="secret"?"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?tqx=out:csv&headers=1&sheet="+encodeURIComponent(SECRET_TAB):"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/export?format=csv&gid="+SHEET_GID[cat]}
 var syncState=null;

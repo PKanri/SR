@@ -206,6 +206,7 @@ img{max-width:100%}
 .pname{font-weight:700;overflow-wrap:anywhere;line-height:1.4}
 .pmeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;align-items:center}
 .muted{color:var(--muted)}
+.ptop{display:flex;gap:10px;align-items:flex-start}.ptxt{flex:1;min-width:0}.pthumb{width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none;cursor:pointer;border:1px solid var(--line);background:var(--bg)}
 .pdbtn{margin-left:auto;min-height:30px;padding:2px 12px;font-size:12.5px}
 .dgrid{margin:6px 0 0}.dgrid dt{font-size:12.5px;color:var(--muted);margin-top:14px}.dgrid dd{margin:3px 0 0;white-space:pre-line;line-height:1.55;word-break:break-word}
 .dphotos{display:grid;gap:10px;margin-top:6px}.dphotos img{width:100%;max-height:420px;object-fit:contain;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
@@ -681,11 +682,16 @@ function fillUnits(){
   var dl=$("unitlist");
   dl.innerHTML=order.filter(function(k){return k!=="__none"}).map(function(k){return'<option value="'+esc(k)+'">'}).join("");
 }
+function pThumb(p){
+  if(p.cat!=="secret"||!p.code)return"";
+  var f=phMap&&phMap[p.code]&&phMap[p.code][0]?{src:phMap[p.code][0].url}:photoUrls(pdMap&&pdMap[p.code]?pdMap[p.code].photo:"")[0];
+  return f?'<img class="pthumb" src="'+esc(f.src)+'" alt="" loading="lazy" referrerpolicy="no-referrer" data-pdet="'+esc(p.code)+'" onerror="this.remove()">':"";
+}
 function pcard(p,t,dups){
   var d=p.code&&dups[p.code]>1;
   var code=p.code?'<span class="code">'+hl(p.code,t)+'</span>'+copyBtn(p.code,"รหัสสินค้า"):'<span class="nocode">ไม่มีรหัส</span>';
-  return '<article class="prow"><div class="pname">'+hl(p.nameTh||p.name,t)+'</div>'+
-    (p.nameTh&&p.name?'<div class="eng">'+hl(p.name,t)+'</div>':'')+
+  return '<article class="prow"><div class="ptop">'+pThumb(p)+'<div class="ptxt"><div class="pname">'+hl(p.nameTh||p.name,t)+'</div>'+
+    (p.nameTh&&p.name?'<div class="eng">'+hl(p.name,t)+'</div>':'')+'</div></div>'+
     ((p.unit||p.perUnit||p.cat==="secret"||d)?'<div class="pmeta">'+((p.unit||p.cat==="secret")?'<span class="unit">'+hl(unitLabel(p.unit),t)+'</span>':'')+(p.perUnit?'<span class="per">บรรจุ '+hl(p.perUnit,t)+'</span>':'')+(d?'<span class="dup">รหัสซ้ำ '+dups[p.code]+' รายการ</span>':'')+(p.cat==="secret"&&p.code?'<button class="btn small pdbtn" type="button" data-pdet="'+esc(p.code)+'">รายละเอียด</button>':'')+'</div>':'')+
     '<div class="pbottom"><div class="pcode">'+code+'</div>'+
     '<div class="price'+(p.price===null?" none":"")+'">'+(p.price===null?"ไม่ระบุราคา":hl(fmtPrice(p.price),t))+'</div>'+
@@ -1092,6 +1098,7 @@ async function loadPhotos(force){
     phMap=m;phErr="";phState=2;
   }catch(e){phMap={};phState=3;phErr=/relation|does not exist|schema cache|42P01|PGRST205/i.test((e&&e.message)||"")?"ยังไม่ได้รันไฟล์ schema_photos.sql ใน Supabase":((e&&e.message)||"โหลดรูปไม่สำเร็จ")}
   if(pdCur&&!$("dsheet").hidden)renderPD();
+  if(isProdPage())render();
 }
 function photoUrls(s){
   return String(s||"").split(/[\s,;]+/).filter(function(u){return /^https?:\/\//i.test(u)}).map(function(u){
@@ -1160,7 +1167,7 @@ async function uploadPhotos(files){
       (phMap=phMap||{});(phMap[code]=phMap[code]||[]).push(ins.data[0]);ok++;
     }catch(e){fail=(e&&e.message)||"อัปโหลดไม่สำเร็จ";if(/row-level|policy|not found|bucket|relation|schema cache/i.test(fail))fail+=" (ตรวจว่ารัน schema_photos.sql แล้ว)"}
   }
-  phBusy=false;phMsg=ok?"เพิ่มรูปแล้ว "+ok+" รูป":"";phErr=fail;renderPD();
+  phBusy=false;phMsg=ok?"เพิ่มรูปแล้ว "+ok+" รูป":"";phErr=fail;renderPD();if(ok&&isProdPage())render();
 }
 async function savePD(){
   if(pdSaving||!pdCur)return;
@@ -1206,7 +1213,7 @@ async function deletePhoto(id){
     await sb.storage.from(PH_BUCKET).remove([x.path]);
     phMap[code]=list.filter(function(r){return r.id!==id});phMsg="ลบรูปแล้ว";
   }catch(e){phErr=(e&&e.message)||"ลบไม่สำเร็จ"}
-  phBusy=false;renderPD();
+  phBusy=false;renderPD();if(isProdPage())render();
 }
 function parseCSV(t){
   var rows=[],row=[],f="",q=false;

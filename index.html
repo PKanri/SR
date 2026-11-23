@@ -78,6 +78,7 @@ h1{font-size:18px;line-height:1.3;margin:0 0 10px;font-weight:700;text-wrap:bala
 h1 small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:2px}
 .tabs{display:flex;gap:2px;margin:0 0 10px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .tabs button{min-height:44px;padding:8px 12px;white-space:nowrap;flex:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;background:transparent;color:var(--muted);font-size:15px;cursor:pointer}
+.tabs button{display:inline-flex;align-items:center;gap:8px}.ti{width:26px;height:26px;flex:none}
 .tabs button[aria-current="page"]{color:var(--accent);font-weight:700;border-bottom-color:var(--accent)}
 .tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:6px}
 .search{position:relative}
@@ -278,16 +279,16 @@ try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTh
   <nav class="tabs" aria-label="หน้า">
     <div class="tabgroup" role="group" aria-label="สาขา">
       <span class="tabgroup-l">สาขา</span>
-      <button id="t-search" type="button" data-page="search">สาขาSecret Recipe</button>
-      <button id="t-rest" type="button" data-page="restaurants">สาขาPonn/Malakor</button>
+      <button id="t-search" type="button" data-page="search"><span>สาขาSecret Recipe</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="#b5534f"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M5.8 10.2 7.3 6.6h9.4l1.5 3.6z" fill="#fbf1e3"/><path d="M5.8 10.2q1.6 2 3.1 0 1.6 2 3.1 0 1.5 2 3.1 0 1.5 2 3.1 0" fill="#fbf1e3" stroke="#fbf1e3" stroke-width=".6" stroke-linejoin="round"/><path d="M7.4 12.6v5h9.2v-5" fill="none" stroke="#fbf1e3" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="10.6" y="13.6" width="2.8" height="4" rx=".6" fill="#fbf1e3"/></g></svg></button>
+      <button id="t-rest" type="button" data-page="restaurants"><span>สาขาPonn/Malakor</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="#d9a199"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M5.8 12.2h12.4c0 3.6-2.6 5.8-6.2 5.8s-6.2-2.2-6.2-5.8z" fill="#fbf1e3"/><path d="M9.4 9.6q-1-1.1 0-2.2M12 9.6q-1-1.1 0-2.2M14.6 9.6q-1-1.1 0-2.2" fill="none" stroke="#fbf1e3" stroke-width="1.2" stroke-linecap="round"/></g></svg></button>
     </div>
     <div class="tabsep" role="separator"></div>
     <div class="tabgroup" role="group" aria-label="รหัสสินค้า">
       <span class="tabgroup-l">รหัสสินค้า</span>
-      <button id="t-products" type="button" data-page="products">Secret Recipe</button>
-      <button id="t-bellinee" type="button" data-page="bellinee">Bellinee</button>
-      <button id="t-oem" type="button" data-page="oem">OEM</button>
-      <button id="t-sanghiran" type="button" data-page="sanghiran">Sanghiran</button>
+      <button id="t-products" type="button" data-page="products"><span>Secret Recipe</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11.4" fill="#fbf1e3" stroke="#e4c3bb" stroke-width="1.2"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M5.8 11.4h12.4v5.6a1.4 1.4 0 0 1-1.4 1.4H7.2a1.4 1.4 0 0 1-1.4-1.4z" fill="#ecc9c1" stroke="#b5534f" stroke-width="1.1" stroke-linejoin="round"/><path d="M5.8 14.6h12.4" stroke="#b5534f" stroke-width="1.1"/><path d="M5.8 11.4q1.6-1.7 3.1 0 1.6-1.7 3.1 0 1.5-1.7 3.1 0 1.5-1.7 3.1 0" fill="#fbf1e3" stroke="#b5534f" stroke-width="1.1" stroke-linejoin="round"/><circle cx="12" cy="7.6" r="1.5" fill="#b5534f"/></g></svg></button>
+      <button id="t-bellinee" type="button" data-page="bellinee"><span>Bellinee</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="#ecc9c1"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M7.6 13.4h8.8L15.2 18H8.8z" fill="#b5534f"/><path d="M7 13.4C6.6 9.8 9.2 8.4 12 7.4c2.8 1 5.4 2.4 5 6z" fill="#fbf1e3"/><circle cx="12" cy="6" r="1.2" fill="#b5534f"/></g></svg></button>
+      <button id="t-oem" type="button" data-page="oem"><span>OEM</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="12" fill="#b5534f"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M6.6 9.6 12 7.2l5.4 2.4v6.8L12 18.8l-5.4-2.4z" fill="none" stroke="#fbf1e3" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.6 9.6 12 12l5.4-2.4M12 12v6.8" fill="none" stroke="#fbf1e3" stroke-width="1.3" stroke-linejoin="round"/></g></svg></button>
+      <button id="t-sanghiran" type="button" data-page="sanghiran"><span>Sanghiran</span><svg class="ti" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11.4" fill="#fbf1e3" stroke="#e4c3bb" stroke-width="1.2"/><g transform="translate(12 12) scale(1.22) translate(-12 -12)"><path d="M12 18.6V9" stroke="#b5534f" stroke-width="1.3" stroke-linecap="round"/><g fill="#b5534f"><ellipse cx="12" cy="6.8" rx="1.3" ry="2.2"/><ellipse cx="9.5" cy="10" rx="1.2" ry="2.1" transform="rotate(-35 9.5 10)"/><ellipse cx="14.5" cy="10" rx="1.2" ry="2.1" transform="rotate(35 14.5 10)"/><ellipse cx="9.8" cy="13.6" rx="1.2" ry="2.1" transform="rotate(-35 9.8 13.6)"/><ellipse cx="14.2" cy="13.6" rx="1.2" ry="2.1" transform="rotate(35 14.2 13.6)"/></g></g></svg></button>
     </div>
   </nav>
   <header class="top">
